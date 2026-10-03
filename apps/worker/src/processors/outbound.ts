@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
-import { markAccountError, type OutboundJob } from '@haazir/messaging'
+import { announceMessage, markAccountError, type OutboundJob } from '@haazir/messaging'
 import { ContentLimitError, GraphError, type OutboundContent } from '@haazir/whatsapp'
 import type { Deps } from '../deps'
 
@@ -47,6 +47,7 @@ export async function processOutbound(deps: Deps, job: OutboundJob, isLastAttemp
       .graph(row.account)
       .send(row.contact.waId, stored.content, stored.replyTo)
     await deps.db.update(messages).set({ waMessageId }).where(eq(messages.id, row.message.id))
+    await announceMessage(deps.db, deps.events, row.message.orgId, row.message.id)
     return { sent: true, waMessageId }
   } catch (err) {
     if (err instanceof ContentLimitError) {
@@ -68,8 +69,10 @@ export async function processOutbound(deps: Deps, job: OutboundJob, isLastAttemp
 }
 
 async function fail(deps: Deps, messageId: string, code: string, title: string) {
-  await deps.db
+  const [row] = await deps.db
     .update(messages)
     .set({ status: 'failed', errorCode: code, errorTitle: title })
     .where(eq(messages.id, messageId))
+    .returning({ orgId: messages.orgId })
+  if (row) await announceMessage(deps.db, deps.events, row.orgId, messageId)
 }

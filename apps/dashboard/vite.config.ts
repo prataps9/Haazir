@@ -16,6 +16,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // Same-origin in dev: the browser talks to Vite, Vite forwards to the API.
-    proxy: { '/api': API, '/health': API, '/ready': API },
+    proxy: {
+      '/api': API,
+      '/health': API,
+      '/ready': API,
+      '/socket.io': { target: API, ws: true },
+    },
   },
 })

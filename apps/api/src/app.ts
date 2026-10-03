@@ -1,18 +1,24 @@
 import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
+import { toNodeHandler } from 'better-auth/node'
 import { pinoHttp } from 'pino-http'
+import { orgScope, requireSuperAdmin, requireUser } from './auth/middleware'
+import type { AppDeps } from './deps'
 import { errorHandler, notFound } from './middleware/errorHandler'
-import { healthRouter, type HealthDeps } from './routes/health'
-import { whatsappWebhookRouter, type WhatsappWebhookDeps } from './webhooks/whatsapp'
-import type { Logger } from './logger'
+import { adminRouter } from './routes/admin'
+import { botRouter } from './routes/bot'
+import { contactsRouter } from './routes/contacts'
+import { conversationsRouter } from './routes/conversations'
+import { healthRouter } from './routes/health'
+import { invitesRouter } from './routes/invites'
+import { knowledgeRouter } from './routes/knowledge'
+import { mediaRouter } from './routes/media'
+import { meRouter, membersRouter } from './routes/me'
+import { pushRouter } from './routes/push'
+import { whatsappWebhookRouter } from './webhooks/whatsapp'
 
-export interface AppDeps extends HealthDeps {
-  logger: Logger
-  /** Origins allowed to call the API from a browser (the dashboard). */
-  corsOrigins: string[]
-  whatsapp: WhatsappWebhookDeps
-}
+export type { AppDeps }
 
 /**
  * Builds the Express app without listening, so tests drive it with supertest.
@@ -20,8 +26,11 @@ export interface AppDeps extends HealthDeps {
  * Middleware order matters and is fixed here:
  *   1. security headers   2. request logging   3. health (no CORS, no body)
  *   4. webhooks (raw body, signature-checked; no CORS: servers call them)
- *   5. CORS               6. JSON body         7. /api/v1 routes
- *   8. 404                9. error handler
+ *   5. CORS               6. Better Auth (/api/v1/auth/*, reads its own body)
+ *   7. JSON body          8. public: invites
+ *   9. session required:  /me, push, admin (super admin)
+ *  10. org required:      everything else, scoped to req.org
+ *  11. 404                12. error handler
  */
 export function createApp(deps: AppDeps) {
   const app = express()
@@ -42,10 +51,26 @@ export function createApp(deps: AppDeps) {
   app.use(whatsappWebhookRouter(deps.whatsapp))
 
   app.use(cors({ origin: deps.corsOrigins, credentials: true }))
+  app.all('/api/v1/auth/*splat', toNodeHandler(deps.auth))
   app.use(express.json({ limit: '1mb' }))
 
   const api = express.Router()
-  // Resource routers (spec §9) mount here from Phase 1 onwards.
+  api.use(invitesRouter(deps))
+
+  api.use(requireUser(deps.auth, deps.db))
+  api.use(meRouter(deps))
+  api.use(pushRouter(deps))
+  api.use('/admin', requireSuperAdmin)
+  api.use(adminRouter(deps))
+
+  api.use(orgScope(deps.db))
+  api.use(membersRouter(deps))
+  api.use(conversationsRouter(deps))
+  api.use(contactsRouter(deps))
+  api.use(knowledgeRouter(deps))
+  api.use(botRouter(deps))
+  api.use(mediaRouter(deps))
+
   app.use('/api/v1', api)
 
   app.use(notFound)

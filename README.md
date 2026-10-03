@@ -235,6 +235,63 @@ Needs an AI key in `.env` (see "Configure it") for steps 1 to 6.
 8. `pnpm whatsapp:simulate STOP`: "Okay, we won't message you again.", and the contact is
    `opted_out`; further messages get no reply.
 
+### Phase 3
+
+Needs `pnpm dev`, a seeded database and `pnpm whatsapp:mock`.
+
+1. Open `localhost:5173`: you land on the login page. Sign in as `rakesh@shiksha.example`.
+2. `pnpm whatsapp:simulate "Mujhe sir se baat karni hai"`: the chat appears at the top of **Chat**
+   without a refresh, in "आप" (human) mode with the reason, and a toast says the bot handed it over.
+3. Open it, type a reply and send: the bubble shows at once, then one tick, two ticks and blue
+   ticks as the mock Meta reports back. Tap **बॉट को वापस दें**: the badge turns to bot.
+4. Sign in as `sunita@pragati.example` in a private window: her inbox is empty, and pasting
+   Rakesh's `/chat/<id>` link shows "not found".
+5. Sign in as the agent: **Bot settings** is read-only, **Teach the bot** has no add or delete.
+6. **Teach the bot** > Questions & answers: add one, delete one. Without an AI key the **Test** tab
+   says the bot would hand over; with a key it shows the answer, the documents and the lookups.
+7. **Bot settings**: turn the bot off (a confirmation appears), then on. Type 21 characters into a
+   menu button: the field shows an error and Save is disabled.
+8. **Settings** > turn on notifications on a phone (Chrome, Android). Run step 2 again with the
+   dashboard closed: the notification arrives, and tapping it opens that chat.
+9. `pnpm admin:create ...`, sign in, open **Admin**: create an institute (copy the invite link),
+   open it, save a number, press **Test connection** against the mock.
+
+## Teams, tenants and the dashboard (Phase 3)
+
+- **Login:** Better Auth (email + password, cookie session). Invite-only: the super admin creates an
+  institute and gets an invite link for its owner (valid 7 days); owners and admins invite staff the
+  same way. Email delivery of invites arrives with Resend in Phase 6, so for now the link is copied.
+- **Roles:** owner and admin can change bot settings and teach the bot; agents chat and read.
+  Every request carries `X-Org-Id`; the API checks the session's membership for that org and scopes
+  every query by it. `apps/api/src/__tests__/tenancy.test.ts` seeds two institutes and proves that
+  every resource returns 404 across them, a foreign `X-Org-Id` is 403, and sockets can't join
+  another org's room.
+- **Chat** (`/chat`): live list and conversation over Socket.IO (rooms per org), takeover and
+  hand-back, 24-hour window timer, delivery ticks, contact panel (name, tags, notes).
+- **Bot ko sikhayein** (`/knowledge`): documents (text, website, PDF), Sawaal-Jawab, "Jinka jawab
+  nahi pata" (write the answer and the bot learns it), and a test box that shows which documents and
+  database lookups an answer used.
+- **Bot settings** (`/bot`): on/off with confirmation, name, tone, welcome and after-hours texts per
+  language, the three menu buttons (20 characters, WhatsApp's limit), keywords, hourly limit, and a
+  playground. Nothing typed in a playground is sent on WhatsApp.
+- **Admin** (`/admin`, super admin only): create an institute, connect its WhatsApp number by hand
+  (token stored encrypted), "Test connection" asks Meta for the number's name and quality.
+- **Handoff alerts:** when the bot hands a chat over, the org's room gets a `handoff` event and
+  every member with push on gets a Web Push notification that opens that chat. Settings has the
+  per-phone switch. Generate keys once with `pnpm push:keys` and put them in `.env`
+  (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`). Android Chrome works in a tab; "Add to Home screen"
+  makes it behave like an app.
+
+```bash
+pnpm db:migrate && pnpm db:seed   # two institutes; demo password: haazir-demo-2026
+pnpm admin:create --email you@example.com --name "You" --password "12+ characters"
+pnpm dev
+```
+
+Demo logins: `rakesh@shiksha.example` (owner), `pooja@shiksha.example` (agent) and
+`sunita@pragati.example` (owner of the second institute). Seeded passwords are only set outside
+production.
+
 ## Database
 
 Schema changes: edit `packages/db/src/schema`, then

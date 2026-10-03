@@ -1,9 +1,12 @@
+import { Emitter } from '@socket.io/redis-emitter'
 import { Queue, Worker, type Job } from 'bullmq'
 import { Redis } from 'ioredis'
 import { AiNotConfiguredError, createModels, createTranscriber, type Models } from '@haazir/ai-core'
 import { createDb } from '@haazir/db'
 import {
+  createWebPushSender,
   graphClientFor,
+  type OrgEvents,
   type AiReplyJob,
   type InboundJob,
   type IngestJob,
@@ -60,6 +63,24 @@ if (!stt)
     'speech-to-text not configured: voice notes go to staff',
   )
 
+// Live updates reach dashboards through the API's Socket.IO Redis adapter.
+// JSON round trip so dates arrive as ISO strings, as from the API itself.
+const emitter = new Emitter(connection.duplicate())
+const events: OrgEvents = {
+  emit: (orgId, event, data) =>
+    void emitter.to(`org:${orgId}`).emit(event, JSON.parse(JSON.stringify(data))),
+}
+
+const push =
+  env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY
+    ? await createWebPushSender({
+        publicKey: env.VAPID_PUBLIC_KEY,
+        privateKey: env.VAPID_PRIVATE_KEY,
+        subject: env.VAPID_SUBJECT,
+      })
+    : null
+if (!push) logger.warn('VAPID keys not set: handoff push notifications are off (pnpm push:keys)')
+
 const deps: Deps = {
   db: database.db,
   kv: redisKeyValue(connection),
@@ -73,6 +94,8 @@ const deps: Deps = {
   graph: (account) => graphClientFor(account, env),
   models,
   stt,
+  events,
+  push,
   log: logger,
   now: () => new Date(),
 }

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { conversations, messages, whatsappAccounts } from '@haazir/db'
-import type { MediaJob } from '@haazir/messaging'
+import { announceMessage, type MediaJob } from '@haazir/messaging'
 import { buffer } from 'node:stream/consumers'
 import { extensionFor } from '@haazir/storage'
 import type { Deps } from '../deps'
@@ -74,6 +74,7 @@ async function storeMedia(deps: Deps, job: MediaJob) {
     .update(messages)
     .set({ mediaKey: key, mediaMime: mime })
     .where(eq(messages.id, row.message.id))
+  await announceMessage(deps.db, deps.events, job.orgId, row.message.id)
 
   if (row.message.type === 'audio') await transcribeAndReply(deps, job, key, mime)
   return { stored: true, key, size }

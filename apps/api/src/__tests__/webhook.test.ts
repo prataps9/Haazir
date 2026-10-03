@@ -1,20 +1,23 @@
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { InboundJob } from '@haazir/messaging'
 import { signBody } from '@haazir/whatsapp'
 import { createApp } from '../app'
-import { createLogger } from '../logger'
+import { createTestApp } from './helpers'
 
 const SECRET = 'test-app-secret'
-const logger = createLogger({ name: 'test', level: 'silent', pretty: false })
+
+let base: Awaited<ReturnType<typeof createTestApp>>
+beforeAll(async () => {
+  base = await createTestApp()
+})
+afterAll(() => base.close())
 
 function setup(opts: { appSecret?: string; verifyToken?: string; failQueue?: boolean } = {}) {
   const queued: InboundJob[] = []
   const app = createApp({
-    logger,
+    ...base.deps,
     corsOrigins: [],
-    database: { ping: async () => {} },
-    redis: { ping: async () => 'PONG', get: async () => null },
     whatsapp: {
       appSecret: 'appSecret' in opts ? opts.appSecret : SECRET,
       verifyToken: 'verifyToken' in opts ? opts.verifyToken : 'verify-me',

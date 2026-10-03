@@ -1,7 +1,9 @@
 import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AnyDatabase } from '../client'
+import { verifyPassword } from 'better-auth/crypto'
 import {
+  accounts,
   batches,
   botConfigs,
   courses,
@@ -12,7 +14,7 @@ import {
   users,
 } from '../schema'
 import { seed } from '../seed'
-import { DEMO_BATCHES, DEMO_COURSES, DEMO_FAQS, PLANS } from '../seed-data'
+import { DEMO_BATCHES, DEMO_COURSES, DEMO_FAQS, DEMO_PASSWORD, PLANS } from '../seed-data'
 import { createTestDb } from '../testing'
 
 // PGlite is real Postgres compiled to WASM, in-process: these tests run the
@@ -31,19 +33,22 @@ afterAll(async () => {
 })
 
 describe('migrations', () => {
-  it('creates the tables so far (core, WhatsApp, AI + coaching)', async () => {
+  it('creates the tables so far (core, WhatsApp, AI + coaching, auth)', async () => {
     const result = rows<{ table_name: string }>(
       await db.execute(
         sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
       ),
     )
     expect(result.map((r) => r.table_name)).toEqual([
+      'accounts',
       'ai_traces',
+      'audit_logs',
       'batches',
       'bot_configs',
       'contacts',
       'conversations',
       'courses',
+      'invites',
       'knowledge_chunks',
       'knowledge_faqs',
       'knowledge_sources',
@@ -51,9 +56,12 @@ describe('migrations', () => {
       'messages',
       'organizations',
       'plans',
+      'push_subscriptions',
+      'sessions',
       'super_admins',
       'unanswered_questions',
       'users',
+      'verifications',
       'whatsapp_accounts',
     ])
   })
@@ -78,12 +86,23 @@ describe('seed', () => {
     await seed(db)
     await seed(db)
     expect(await db.$count(plans)).toBe(PLANS.length)
-    expect(await db.$count(users)).toBe(3)
-    expect(await db.$count(memberships)).toBe(2)
-    expect(await db.$count(courses)).toBe(DEMO_COURSES.length)
-    expect(await db.$count(batches)).toBe(DEMO_BATCHES.length)
-    expect(await db.$count(botConfigs)).toBe(1)
-    expect(await db.$count(knowledgeFaqs)).toBe(DEMO_FAQS.length)
+    expect(await db.$count(users)).toBe(4)
+    expect(await db.$count(memberships)).toBe(3)
+    // Two institutes, each with its own copy of the demo catalogue.
+    expect(await db.$count(courses)).toBe(DEMO_COURSES.length * 2)
+    expect(await db.$count(batches)).toBe(DEMO_BATCHES.length * 2)
+    expect(await db.$count(botConfigs)).toBe(2)
+    expect(await db.$count(knowledgeFaqs)).toBe(DEMO_FAQS.length * 2)
+  })
+
+  it('sets demo passwords only when asked, hashed the way Better Auth verifies them', async () => {
+    expect(await db.$count(accounts)).toBe(0)
+    await seed(db, { passwords: true })
+    await seed(db, { passwords: true })
+    const rows = await db.select().from(accounts)
+    expect(rows).toHaveLength(4)
+    expect(rows[0]?.password).not.toContain(DEMO_PASSWORD)
+    expect(await verifyPassword({ hash: rows[0]!.password!, password: DEMO_PASSWORD })).toBe(true)
   })
 
   it('has pgvector: stores and ranks embeddings by cosine distance', async () => {

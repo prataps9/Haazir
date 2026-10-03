@@ -280,10 +280,13 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
     return handoff('upset', `Shikayat: ${text.slice(0, 80)}`, lang)
   }
 
+  // Button titles the owner set in bot settings, else ours. The ids are fixed.
+  const menuTitle = (id: string, fallback: Record<ReplyLanguage, string>) =>
+    pick(bot?.mainMenu.find((m) => m.id === id)?.title, fallback, lang).slice(0, 20)
   const menuButtons = [
-    { id: 'menu_courses', title: COPY.courses[lang] },
-    { id: 'menu_demo', title: COPY.demo[lang] },
-    { id: 'menu_talk', title: COPY.talk[lang] },
+    { id: 'menu_courses', title: menuTitle('menu_courses', COPY.courses) },
+    { id: 'menu_demo', title: menuTitle('menu_demo', COPY.demo) },
+    { id: 'menu_talk', title: menuTitle('menu_talk', COPY.talk) },
   ]
   if (routed.intent === 'greeting') {
     const body = pick(

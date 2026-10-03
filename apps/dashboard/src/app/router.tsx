@@ -1,6 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { AppShell } from './AppShell'
 import { MORE_NAV, PRIMARY_NAV } from './nav'
+import { RequireAuth } from './RequireAuth'
 
 // Every screen is its own chunk (§14.11: < 250 KB gzip on first load), so a
 // phone opening the inbox never downloads the campaign builder.
@@ -16,13 +17,33 @@ const screens: RouteObject[] = [
     index: true,
     lazy: async () => ({ Component: (await import('@/features/home/HomePage')).default }),
   },
-  // Screens later phases build; each replaces its placeholder.
+  {
+    path: 'chat',
+    lazy: async () => ({ Component: (await import('@/features/chat/ChatPage')).default }),
+  },
+  {
+    path: 'chat/:id',
+    lazy: async () => ({ Component: (await import('@/features/chat/ChatPage')).default }),
+  },
+  {
+    path: 'knowledge',
+    lazy: async () => ({ Component: (await import('@/features/knowledge/KnowledgePage')).default }),
+  },
+  {
+    path: 'bot',
+    lazy: async () => ({ Component: (await import('@/features/bot/BotSettingsPage')).default }),
+  },
+  {
+    path: 'admin',
+    lazy: async () => ({ Component: (await import('@/features/admin/AdminPage')).default }),
+  },
   {
     path: 'settings',
     lazy: async () => ({ Component: (await import('@/features/settings/SettingsPage')).default }),
   },
+  // Screens later phases build; each replaces its placeholder.
   ...[...PRIMARY_NAV.slice(1), ...MORE_NAV.flat()]
-    .filter((item) => item.key !== 'settings')
+    .filter((item) => !['settings', 'chat', 'knowledge', 'bot'].includes(item.key))
     .map((item) => ({
       path: item.to.slice(1),
       lazy: placeholder(item.key),
@@ -37,8 +58,22 @@ const screens: RouteObject[] = [
 
 const routes: RouteObject[] = [
   {
+    path: '/login',
+    hydrateFallbackElement: <ShellFallback />,
+    lazy: async () => ({ Component: (await import('@/features/auth/LoginPage')).default }),
+  },
+  {
+    path: '/invite/:token',
+    hydrateFallbackElement: <ShellFallback />,
+    lazy: async () => ({ Component: (await import('@/features/auth/InvitePage')).default }),
+  },
+  {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     hydrateFallbackElement: <ShellFallback />,
     children: screens,
   },

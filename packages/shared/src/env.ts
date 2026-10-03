@@ -96,6 +96,8 @@ export const envSchema = z
     RESEND_API_KEY: optional(),
     VAPID_PUBLIC_KEY: optional(),
     VAPID_PRIVATE_KEY: optional(),
+    // Contact for push services, per the Web Push spec: a mailto: or https: URL.
+    VAPID_SUBJECT: z.string().default('mailto:hello@haazir.studio'),
     SENTRY_DSN: optional(),
 
     // Set by pnpm: the directory a command was typed in, so CLI scripts

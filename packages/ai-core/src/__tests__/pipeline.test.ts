@@ -244,6 +244,30 @@ describe('menu and clarifying', () => {
     expect(smart.doGenerateCalls).toHaveLength(0)
   })
 
+  it("uses the owner's button titles from bot settings", async () => {
+    await f.db.update(botConfigs).set({
+      mainMenu: [{ id: 'menu_demo', title: { hinglish: 'Demo class lein' } }],
+    })
+    const d = await decideReply(
+      deps(
+        models(
+          router({ intent: 'greeting', language: 'hinglish', script: 'latin' }),
+          scripted({ text: 'x' }),
+        ),
+      ),
+      await f.inbound('hello'),
+    )
+    expect(d).toMatchObject({
+      content: {
+        buttons: [
+          { title: 'Courses dekhein' },
+          { title: 'Demo class lein' },
+          { title: 'Baat karein' },
+        ],
+      },
+    })
+  })
+
   it('asks once when nothing makes sense, then hands over on the second miss', async () => {
     const m = models(
       router({ intent: 'other', confidence: 0.2, language: 'hinglish', script: 'latin' }),

@@ -1,19 +1,22 @@
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
-import { createApp, type AppDeps } from '../app'
-import { createLogger } from '../logger'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { WORKER_HEARTBEAT_KEY } from '@haazir/shared'
+import { createApp, type AppDeps } from '../app'
+import { createTestApp } from './helpers'
 
-const logger = createLogger({ name: 'test', level: 'silent', pretty: false })
+let base: Awaited<ReturnType<typeof createTestApp>>
+beforeAll(async () => {
+  base = await createTestApp()
+})
+afterAll(() => base.close())
 
 function makeApp(overrides: Partial<AppDeps> = {}) {
   const store = new Map<string, string>([[WORKER_HEARTBEAT_KEY, new Date().toISOString()]])
   return createApp({
-    logger,
+    ...base.deps,
     corsOrigins: ['http://localhost:5173'],
     database: { ping: async () => {} },
     redis: { ping: async () => 'PONG', get: async (k) => store.get(k) ?? null },
-    whatsapp: { inboundQueue: { add: async () => undefined } },
     ...overrides,
   })
 }
@@ -71,11 +74,17 @@ describe('GET /ready', () => {
 
 describe('errors', () => {
   it('uses the standard error shape for unknown routes', async () => {
-    const res = await request(makeApp()).get('/api/v1/nope')
+    const res = await request(makeApp()).get('/nope')
     expect(res.status).toBe(404)
     expect(res.body).toEqual({
-      error: { code: 'NOT_FOUND', message: 'No route for GET /api/v1/nope' },
+      error: { code: 'NOT_FOUND', message: 'No route for GET /nope' },
     })
+  })
+
+  it('asks for a login before revealing whether an API route exists', async () => {
+    const res = await request(makeApp()).get('/api/v1/nope')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHENTICATED')
   })
 
   it('turns malformed JSON into VALIDATION, not a stack trace', async () => {

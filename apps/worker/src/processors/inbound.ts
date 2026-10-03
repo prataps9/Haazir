@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
-import type { WhatsappAccount } from '@haazir/messaging'
+import { announceMessage, type WhatsappAccount } from '@haazir/messaging'
 import {
   extendWindow,
   parseWebhook,
@@ -81,8 +81,12 @@ export async function processInbound(
       `contact-${account.id}-${message.bsuid ?? message.from}`,
       () => storeInbound(deps, account, message),
     )
-    if (stored.isNew) counts.stored++
-    else counts.duplicates++
+    if (stored.isNew) {
+      counts.stored++
+      await announceMessage(deps.db, deps.events, account.orgId, stored.messageId, 'message:new')
+    } else {
+      counts.duplicates++
+    }
 
     // Hand off even for a duplicate: if an earlier attempt stored the message
     // but crashed before queueing, this is what gets the reply out. Both
@@ -122,9 +126,13 @@ export async function processInbound(
       counts.dropped++
       continue
     }
-    const matched = await applyStatus(deps, account, status)
-    if (matched) counts.statuses++
-    else unmatched.push(status.waMessageId)
+    const messageId = await applyStatus(deps, account, status)
+    if (messageId) {
+      counts.statuses++
+      await announceMessage(deps.db, deps.events, account.orgId, messageId)
+    } else {
+      unmatched.push(status.waMessageId)
+    }
   }
 
   if (unmatched.length) {
@@ -268,7 +276,7 @@ async function applyStatus(
   deps: Deps,
   account: WhatsappAccount,
   s: StatusUpdate,
-): Promise<boolean> {
+): Promise<string | null> {
   // Scoped to the number the status came from: one org's webhook can never
   // touch another org's messages, whatever ids it carries.
   const [row] = await deps.db
@@ -282,7 +290,7 @@ async function applyStatus(
         eq(messages.orgId, account.orgId),
       ),
     )
-  if (!row) return false
+  if (!row) return null
 
   const current = row.status ?? 'queued'
   const forward =
@@ -301,5 +309,5 @@ async function applyStatus(
         : {}),
     })
     .where(eq(messages.id, row.id))
-  return true
+  return row.id
 }

@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
     "./seed": "./src/seed.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./seed-data": "./src/seed-data.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate",
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@haazir/shared": "workspace:*",
+    "better-auth": "^1.7.6",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.23.0"
   },

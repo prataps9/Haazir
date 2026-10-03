@@ -7,8 +7,14 @@ import {
   recordTrace,
   recordUnanswered,
 } from '@haazir/ai-core'
-import { conversations, messages, whatsappAccounts } from '@haazir/db'
-import { queueOutbound, type AiReplyJob } from '@haazir/messaging'
+import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
+import {
+  announceConversation,
+  announceMessage,
+  notifyOrg,
+  queueOutbound,
+  type AiReplyJob,
+} from '@haazir/messaging'
 import { AppError } from '@haazir/shared'
 import type { Deps } from '../deps'
 
@@ -68,7 +74,7 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
 
   const send = async (isOptOutConfirmation = false) => {
     try {
-      await queueOutbound(
+      const message = await queueOutbound(
         { db: deps.db, outboundQueue: deps.queues.outbound },
         {
           orgId: job.orgId,
@@ -80,6 +86,7 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
           now,
         },
       )
+      await announceMessage(deps.db, deps.events, job.orgId, message.id, 'message:new')
       return true
     } catch (err) {
       // Opted out or window closed: correct not to reply, nothing to retry.
@@ -103,14 +110,45 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
       await markHandoff(deps.db, row.conversation.id, decision.reason, decision.summary, now)
       if (decision.unanswered) await recordUnanswered(deps.db, job.orgId, decision.unanswered, now)
       await recordTrace(deps.db, job, decision.trace, { reason: decision.reason })
+      await announceHandoff(deps, job, decision.reason, decision.summary)
       deps.log.info({ conversationId: row.conversation.id, reason: decision.reason }, 'handed over')
       return { replied: sent, decision: 'handoff', reason: decision.reason }
     }
     case 'reply': {
       const sent = await send()
       await markBotReplied(deps.db, row.conversation.id, now, decision.clarifyMisses ?? 0)
+      await announceConversation(deps.db, deps.events, job.orgId, row.conversation.id)
       await recordTrace(deps.db, job, decision.trace)
       return { replied: sent, decision: 'reply' }
     }
+  }
+}
+
+/**
+ * Tells staff a chat needs them (spec §11.6): a live banner in open inboxes
+ * and a push notification like "Handoff: Ravi Kumar, fee installment ke baare
+ * mein poochh rahe hain" that opens the chat when tapped.
+ */
+async function announceHandoff(deps: Deps, job: AiReplyJob, reason: string, summary: string) {
+  const [contact] = await deps.db
+    .select({ name: contacts.name, profileName: contacts.profileName, waId: contacts.waId })
+    .from(conversations)
+    .innerJoin(contacts, eq(contacts.id, conversations.contactId))
+    .where(eq(conversations.id, job.conversationId))
+  const who = contact?.name || contact?.profileName || `+${contact?.waId ?? ''}`
+  deps.events.emit(job.orgId, 'handoff', {
+    conversationId: job.conversationId,
+    reason,
+    summary,
+    contactName: who,
+  })
+  await announceConversation(deps.db, deps.events, job.orgId, job.conversationId)
+  if (deps.push) {
+    await notifyOrg({ db: deps.db, push: deps.push }, job.orgId, 'handoff', {
+      title: `Handoff: ${who}`,
+      body: summary,
+      url: `/chat/${job.conversationId}`,
+      tag: `handoff-${job.conversationId}`,
+    }).catch((err: Error) => deps.log.warn({ err: err.message }, 'push failed'))
   }
 }

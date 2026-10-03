@@ -12,13 +12,18 @@ export async function processIngest(deps: Deps, job: IngestJob) {
     deps.log.warn({ sourceId: job.sourceId }, 'no embedding model configured; source left pending')
     return { chunks: 0, skipped: true }
   }
-  return ingestSource(
-    {
-      db: deps.db,
-      embedding: deps.models.embedding,
-      readFile: async (key) => (await deps.storage.get(key)).body,
-    },
-    job.orgId,
-    job.sourceId,
-  )
+  try {
+    return await ingestSource(
+      {
+        db: deps.db,
+        embedding: deps.models.embedding,
+        readFile: async (key) => (await deps.storage.get(key)).body,
+      },
+      job.orgId,
+      job.sourceId,
+    )
+  } finally {
+    // Ready or failed, the "teach the bot" screen updates without a refresh.
+    deps.events.emit(job.orgId, 'knowledge:updated', { sourceId: job.sourceId })
+  }
 }

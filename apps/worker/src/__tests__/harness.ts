@@ -162,6 +162,7 @@ export async function createHarness() {
     })
     .returning()
 
+  const emitted: { orgId: string; event: string; data: unknown }[] = []
   const kv = new Map<string, string>()
   const chains = new Map<string, Promise<unknown>>()
   const queues = {
@@ -201,6 +202,11 @@ export async function createHarness() {
       }),
     models: mockModels(),
     stt: null,
+    events: {
+      emit: (orgId: string, event: string, data: unknown) =>
+        void emitted.push({ orgId, event, data }),
+    },
+    push: null,
     log: { debug: silent, info: silent, warn: silent, error: silent },
     now: () => now,
   }
@@ -208,6 +214,7 @@ export async function createHarness() {
   return {
     db,
     deps,
+    emitted,
     kv,
     queues,
     org,

@@ -96,6 +96,32 @@ export const DEMO_USERS = {
   superAdmin: { name: 'Pratap', email: 'pratap@haazir.example', uiLanguage: 'en' as const },
 }
 
+/**
+ * Local development only: every demo user logs in with this password. The
+ * seed refuses to set it when NODE_ENV is production.
+ */
+export const DEMO_PASSWORD = 'haazir-demo-2026'
+
+/** A second institute, so tenant isolation is exercised everywhere (spec §22, Phase 3). */
+export const SECOND_ORG = {
+  name: 'Pragati Computer Academy',
+  slug: 'pragati-computer-churu',
+  vertical: 'coaching' as const,
+  city: 'Churu',
+  state: 'Rajasthan',
+  address: 'Subhash Chowk, Churu, Rajasthan 331001',
+  defaultLanguage: 'hinglish' as const,
+  status: 'active' as const,
+  brand: { displayName: 'Pragati Computer, Churu' },
+  onboardingStep: 8,
+}
+
+export const SECOND_ORG_OWNER = {
+  name: 'Sunita Choudhary',
+  email: 'sunita@pragati.example',
+  uiLanguage: 'hi' as const,
+}
+
 // ---- Phase 2: the demo institute's courses, batches, bot and FAQs ----
 // Demo data for development, the eval fixture and screenshots. Fees are
 // plausible for Sikar, not real quotes.

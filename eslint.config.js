@@ -11,6 +11,8 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/coverage/**',
       'apps/site/**',
+      // Service workers run in a different global scope (self, not window).
+      'apps/dashboard/public/**',
       'packages/db/migrations/**',
     ],
   },

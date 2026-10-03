@@ -4,7 +4,9 @@ import type {
   AiReplyJob,
   JobQueue,
   MediaJob,
+  OrgEvents,
   OutboundJob,
+  PushSender,
   WhatsappAccount,
 } from '@haazir/messaging'
 import type { Storage } from '@haazir/storage'
@@ -47,6 +49,10 @@ export interface Deps {
   models: Models | null
   /** Null when no speech-to-text key is set: voice notes are handed to staff. */
   stt: Transcriber | null
+  /** Live updates to the org's open dashboards (Socket.IO via Redis). */
+  events: OrgEvents
+  /** Null without VAPID keys: handoffs then show only in the inbox. */
+  push: PushSender | null
   log: Log
   now(): Date
 }

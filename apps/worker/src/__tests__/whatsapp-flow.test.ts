@@ -6,8 +6,10 @@ import {
   aiTraces,
   contacts,
   conversations,
+  memberships,
   messages,
   organizations,
+  pushSubscriptions,
   whatsappAccounts,
 } from '@haazir/db'
 import { queueOutbound } from '@haazir/messaging'
@@ -405,6 +407,89 @@ describe('voice notes', () => {
     })
     const [conversation] = await h.db.select().from(conversations)
     expect(conversation?.handoffReason).toBe('voice_unclear')
+  })
+})
+
+describe('live updates and push', () => {
+  it("announces new messages, delivery statuses and the bot's reply to the org's dashboards", async () => {
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+    await processInbound(h.deps, { payload: statusUpdate('wamid.OUT1', 'delivered') })
+    const events = h.emitted.map((e) => e.event)
+    expect(events.filter((e) => e === 'message:new')).toHaveLength(2) // inbound + reply
+    expect(events).toContain('message:updated')
+    expect(events).toContain('conversation:updated')
+    expect(h.emitted.every((e) => e.orgId === h.org.id)).toBe(true)
+    const delivered = h.emitted.filter((e) => e.event === 'message:updated').at(-1)!.data as {
+      status: string
+    }
+    expect(delivered.status).toBe('delivered')
+  })
+
+  it('a handoff raises a banner event and pushes to staff devices, forgetting dead ones', async () => {
+    const pushed: { endpoint: string; title: string; url: string }[] = []
+    h.deps.push = {
+      send: async (sub, payload) => {
+        pushed.push({ endpoint: sub.endpoint, title: payload.title, url: payload.url })
+        return { gone: sub.endpoint.includes('dead') }
+      },
+    }
+    const [member] = await h.db
+      .select()
+      .from(memberships)
+      .where(eq(memberships.orgId, h.org.id))
+      .limit(1)
+    await h.db.insert(pushSubscriptions).values([
+      {
+        userId: member!.userId,
+        endpoint: 'https://push.test/alive',
+        keys: { p256dh: 'p', auth: 'a' },
+      },
+      {
+        userId: member!.userId,
+        endpoint: 'https://push.test/dead',
+        keys: { p256dh: 'p', auth: 'a' },
+      },
+    ])
+    h.deps.models = null // → handoff
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+
+    const handoff = h.emitted.find((e) => e.event === 'handoff')
+    expect(handoff?.data).toMatchObject({ reason: 'ai_unavailable', contactName: 'Anil Kumar' })
+    const [conversation] = await h.db.select().from(conversations)
+    expect(pushed.map((p) => p.endpoint).sort()).toEqual([
+      'https://push.test/alive',
+      'https://push.test/dead',
+    ])
+    expect(pushed[0]).toMatchObject({
+      title: 'Handoff: Anil Kumar',
+      url: `/chat/${conversation!.id}`,
+    })
+    expect((await h.db.select().from(pushSubscriptions)).map((s) => s.endpoint)).toEqual([
+      'https://push.test/alive',
+    ])
+  })
+
+  it('respects a member who turned handoff pushes off', async () => {
+    const pushed: string[] = []
+    h.deps.push = { send: async (sub) => (pushed.push(sub.endpoint), { gone: false }) }
+    const members = await h.db.select().from(memberships).where(eq(memberships.orgId, h.org.id))
+    for (const m of members) {
+      await h.db.insert(pushSubscriptions).values({
+        userId: m.userId,
+        endpoint: `https://push.test/${m.userId}`,
+        keys: { p256dh: 'p', auth: 'a' },
+      })
+    }
+    await h.db
+      .update(memberships)
+      .set({ notifyPrefs: { handoff: { push: false, email: false } } })
+      .where(eq(memberships.id, members[0]!.id))
+    h.deps.models = null
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+    expect(pushed).toHaveLength(members.length - 1)
   })
 })
 

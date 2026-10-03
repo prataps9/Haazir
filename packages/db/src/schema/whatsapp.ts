@@ -106,10 +106,11 @@ export const conversations = pgTable(
     contactId: uuid()
       .notNull()
       .references(() => contacts.id, { onDelete: 'cascade' }),
-    /** The number this contact last wrote to: replies go out from it. */
-    whatsappAccountId: uuid()
-      .notNull()
-      .references(() => whatsappAccounts.id, { onDelete: 'restrict' }),
+    /**
+     * The number this contact last wrote to: replies go out from it. Null
+     * only for the bot playground, which never sends to WhatsApp.
+     */
+    whatsappAccountId: uuid().references(() => whatsappAccounts.id, { onDelete: 'restrict' }),
     mode: conversationModeEnum().notNull().default('bot'),
     assignedUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
     unreadCount: integer().notNull().default(0),

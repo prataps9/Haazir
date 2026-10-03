@@ -1,66 +1,148 @@
-import { BellIcon, DotsThreeCircleIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { BellIcon, DotsThreeCircleIcon, ShieldCheckIcon, SignOutIcon } from '@phosphor-icons/react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet, useLocation } from 'react-router'
-import { IconButton } from '@/components/Button'
-import { Wordmark } from '@/components/Jharokha'
+import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router'
+import { LogoMark, Wordmark } from '@/components/Jharokha'
 import { LanguageToggle, ThemeToggle } from '@/components/LanguageToggle'
 import { Sheet } from '@/components/Sheet'
+import { Toaster } from '@/components/Toaster'
 import { cn } from '@/lib/cn'
+import { useLogout, useMe } from '@/lib/session'
+import { useSession } from '@/lib/session-store'
+import { useOrgSocket } from '@/lib/socket'
 import { MORE_NAV, PRIMARY_NAV, type NavItem } from './nav'
 
 /**
  * Phones and tablets (< 1024px): top bar + five bottom tabs, with "Aur" opening
- * a sheet. Desktop: a 240px sidebar with the same groups (§15).
+ * a sheet. Desktop: a 240px sidebar with the same groups (§15). An open chat
+ * on a phone gets the whole screen, like WhatsApp itself.
  */
 export function AppShell() {
+  const { t } = useTranslation()
+  const { org } = useMe()
+  const inChat = !!useMatch('/chat/:id')
+  const onChat = !!useMatch('/chat/*')
+  const labels = useMemo(
+    () => ({ handoff: (name: string) => t('chat.handoffToast', { name }) }),
+    [t],
+  )
+  useOrgSocket(org?.id, labels)
+
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <Sidebar />
       <div className="flex min-h-dvh min-w-0 flex-col">
-        <TopBar />
-        <main id="main" className="flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        {!inChat && <TopBar />}
+        <main
+          id="main"
+          className={cn(
+            'flex-1 lg:pb-0',
+            !onChat && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]',
+          )}
+        >
           <Outlet />
         </main>
-        <BottomTabs />
+        {!inChat && <BottomTabs />}
       </div>
+      <Toaster closeLabel={t('common.close')} />
     </div>
   )
 }
 
-function TopBar() {
+function OrgName({ className }: { className?: string }) {
+  const { org } = useMe()
+  return (
+    <span className={cn('flex min-w-0 items-center gap-2.5', className)}>
+      <LogoMark />
+      <span className="truncate font-display-tight text-h3 text-ink">
+        {org?.displayName ?? 'Haazir'}
+      </span>
+    </span>
+  )
+}
+
+function Bell() {
   const { t } = useTranslation()
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-rule bg-paper pr-2 pl-4 lg:hidden">
-      {/* The org name and branch switcher replace the wordmark once login lands (Phase 3). */}
-      <Wordmark />
-      <IconButton label={t('shell.notifications')}>
-        <BellIcon />
-      </IconButton>
+    <Link
+      to="/settings#notifications"
+      aria-label={t('shell.notifications')}
+      title={t('shell.notifications')}
+      className="flex size-11 items-center justify-center rounded-control text-ink hover:bg-ink/5"
+    >
+      <BellIcon className="size-6" aria-hidden />
+    </Link>
+  )
+}
+
+function TopBar() {
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-rule bg-paper pr-2 pl-4 lg:hidden">
+      <OrgName />
+      <Bell />
     </header>
   )
 }
 
+/** Account actions: switch org (if several), admin (super admin), log out. */
+function AccountActions() {
+  const { t } = useTranslation()
+  const { me, org } = useMe()
+  const setOrgId = useSession((s) => s.setOrgId)
+  const logout = useLogout()
+  if (!me) return null
+  return (
+    <div className="flex flex-col gap-3">
+      {me.orgs.length > 1 && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-small font-semibold text-ink">{t('auth.org')}</span>
+          <select
+            value={org?.id}
+            onChange={(e) => {
+              setOrgId(e.target.value)
+              window.location.assign('/')
+            }}
+            className="h-11 rounded-control border border-rule bg-surface px-3 text-body text-ink"
+          >
+            {me.orgs.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <p className="text-small text-ink-muted">
+        {me.user.name}
+        {org ? `, ${t(`auth.roles.${org.role}`)}` : ''}
+      </p>
+      <button
+        type="button"
+        onClick={() => void logout()}
+        className="flex h-11 items-center gap-2 rounded-control px-2 text-body text-ink hover:bg-ink/5"
+      >
+        <SignOutIcon className="size-5" aria-hidden />
+        {t('auth.logout')}
+      </button>
+    </div>
+  )
+}
+
+const sep =
+  'relative mt-1 pt-1 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-rule'
+
 function Sidebar() {
   const { t } = useTranslation()
+  const { me } = useMe()
   return (
     <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-surface lg:flex">
-      <div className="flex h-16 items-center justify-between pr-2 pl-5">
-        <Wordmark />
-        <IconButton label={t('shell.notifications')}>
-          <BellIcon />
-        </IconButton>
+      <div className="flex h-16 items-center justify-between gap-1 pr-2 pl-5">
+        <OrgName />
+        <Bell />
       </div>
       <nav aria-label={t('nav.main')} className="flex-1 overflow-y-auto pb-4">
         {[PRIMARY_NAV, ...MORE_NAV].map((group, i) => (
-          <ul
-            key={i}
-            className={cn(
-              'py-1',
-              i > 0 &&
-                'relative mt-1 pt-1 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-rule',
-            )}
-          >
+          <ul key={i} className={cn('py-1', i > 0 && sep)}>
             {group.map((item) => (
               <li key={item.to}>
                 <SidebarLink item={item} />
@@ -69,9 +151,15 @@ function Sidebar() {
           </ul>
         ))}
       </nav>
-      {/* Language is one tap away everywhere; theme lives in Settings on desktop. */}
-      <div className="border-t border-rule p-5">
+      {/* Pinned, not in the scrolling list: on a short screen it would hide under the footer. */}
+      {me?.user.isSuperAdmin && (
+        <div className="border-t border-rule py-1">
+          <SidebarLink item={{ to: '/admin', key: 'admin', icon: ShieldCheckIcon }} />
+        </div>
+      )}
+      <div className="flex flex-col gap-4 border-t border-rule p-5">
         <LanguageToggle />
+        <AccountActions />
       </div>
     </aside>
   )
@@ -107,9 +195,10 @@ function SidebarLink({ item }: { item: NavItem }) {
 
 function BottomTabs() {
   const { t } = useTranslation()
+  const { me } = useMe()
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
-  const inMore = MORE_NAV.flat().some((item) => pathname.startsWith(item.to))
+  const inMore = [...MORE_NAV.flat(), { to: '/admin' }].some((item) => pathname.startsWith(item.to))
 
   return (
     <>
@@ -150,15 +239,13 @@ function BottomTabs() {
         closeLabel={t('shell.close')}
       >
         <nav aria-label={t('shell.moreTitle')}>
-          {MORE_NAV.map((group, i) => (
-            <ul
-              key={i}
-              className={cn(
-                'py-1',
-                i > 0 &&
-                  'relative mt-1 pt-1 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-rule',
-              )}
-            >
+          {[
+            ...MORE_NAV,
+            ...(me?.user.isSuperAdmin
+              ? [[{ to: '/admin', key: 'admin', icon: ShieldCheckIcon }]]
+              : []),
+          ].map((group, i) => (
+            <ul key={i} className={cn('py-1', i > 0 && sep)}>
               {group.map((item) => (
                 <li key={item.to}>
                   <MoreLink item={item} onNavigate={() => setMoreOpen(false)} />
@@ -170,6 +257,7 @@ function BottomTabs() {
         <div className="flex flex-col gap-4 border-t border-rule p-5">
           <LanguageToggle />
           <ThemeToggle />
+          <AccountActions />
         </div>
       </Sheet>
     </>
@@ -218,3 +306,5 @@ function MoreLink({ item, onNavigate }: { item: NavItem; onNavigate(): void }) {
     </NavLink>
   )
 }
+
+export { Wordmark }

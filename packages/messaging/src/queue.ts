@@ -32,3 +32,20 @@ export interface IngestJob {
   orgId: string
   sourceId: string
 }
+
+/**
+ * Live updates for an org's dashboards (Socket.IO room per org). The API
+ * emits directly; the worker emits through Redis. Tests record them.
+ */
+export interface OrgEvents {
+  emit(orgId: string, event: OrgEventName, data: unknown): void
+}
+
+/**
+ * message:new / message:updated carry a MessageView, conversation:updated a
+ * ConversationSummary (views.ts); the dashboard upserts them by id.
+ */
+export type OrgEventName =
+  'message:new' | 'message:updated' | 'conversation:updated' | 'handoff' | 'knowledge:updated'
+
+export const noEvents: OrgEvents = { emit: () => {} }

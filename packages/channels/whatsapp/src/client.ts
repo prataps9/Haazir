@@ -134,6 +134,24 @@ export class GraphClient {
     })
   }
 
+  /** The number's public details, reading only: proves the token works without messaging anyone. */
+  async getPhoneNumber(): Promise<{
+    displayPhone?: string
+    verifiedName?: string
+    qualityRating?: string
+  }> {
+    const res = await this.request<{
+      display_phone_number?: string
+      verified_name?: string
+      quality_rating?: string
+    }>(`${this.options.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`)
+    return {
+      displayPhone: res.display_phone_number,
+      verifiedName: res.verified_name,
+      qualityRating: res.quality_rating,
+    }
+  }
+
   /** Looks up a media id from a webhook. The returned URL is short-lived (about 5 minutes). */
   async getMedia(mediaId: string): Promise<MediaInfo> {
     const res = await this.request<{
