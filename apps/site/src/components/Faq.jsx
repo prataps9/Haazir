@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { SectionLabel } from './Brand'
+import { PrimaryCTA, SectionLabel } from './Brand'
 import Reveal from './Reveal'
 
 /**
@@ -35,19 +35,23 @@ const QUESTIONS = [
 
 export default function Faq() {
   return (
-    <section id="faq" className="border-t border-line bg-paper py-16 sm:py-24">
-      <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
-        <Reveal>
+    <section id="faq" className="border-t border-line bg-paper py-20 sm:py-28">
+      <div className="mx-auto grid max-w-[1180px] gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
+        <Reveal className="lg:sticky lg:top-28 lg:self-start">
           <SectionLabel>Straight answers</SectionLabel>
-          <h2 className="max-w-[18ch] text-[clamp(1.9rem,4.2vw,2.9rem)]">
+          <h2 className="max-w-[16ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             The things everyone asks before they say yes.
           </h2>
+          <p className="mt-5 max-w-[34ch] text-ink/70">Something not here? Ask us on WhatsApp — a person answers.</p>
+          <div className="mt-6">
+            <PrimaryCTA context="nav">Ask us directly</PrimaryCTA>
+          </div>
         </Reveal>
 
-        <div className="mt-10 max-w-[52rem] divide-y divide-line border-y border-line">
+        <div className="flex flex-col gap-3">
           {QUESTIONS.map(({ q, a }) => (
-            <details key={q} className="group">
-              <summary className="flex cursor-pointer list-none items-start justify-between gap-6 py-5 text-[1.05rem] text-ink transition-colors hover:text-clay-deep [&::-webkit-details-marker]:hidden">
+            <details key={q} className="group rounded-2xl border border-line bg-white card open:border-ink/20">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-6 rounded-2xl px-6 py-5 text-[1.05rem] font-medium text-ink [&::-webkit-details-marker]:hidden">
                 {q}
                 <Plus
                   className="mt-1 h-4 w-4 shrink-0 text-clay-deep transition-transform duration-200 group-open:rotate-45"
@@ -55,7 +59,7 @@ export default function Faq() {
                   aria-hidden="true"
                 />
               </summary>
-              <p className="max-w-[60ch] pb-6 text-[0.98rem] text-ink/65">{a}</p>
+              <p className="max-w-[60ch] px-6 pb-6 text-[0.98rem] text-ink/70">{a}</p>
             </details>
           ))}
         </div>

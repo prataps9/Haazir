@@ -28,7 +28,7 @@ src/
     hooks.js               reduced motion, animated numbers, sticky-scroll activation
   components/
     Brand.jsx              jharokha mark, wordmark, buttons (all SVG, no image files)
-    Thread.jsx             plays a scripted thread out, message by message
+    Thread.jsx             plays a scripted thread out inside a phone, message by message
     Hero.jsx               headline + the thread: the demo IS the hero
     SegmentBar.jsx         one-line "built for", replacing the six-photo marquee
     Reveal.jsx             fades a block up as it enters view
@@ -57,31 +57,43 @@ public/
 
 ## Design rules this codebase holds to
 
-- The page is a single light theme end to end: `#F7F7F4` sections alternating
-  with `#FFFFFF`, and `#F1EFE9` ("stone") for the panels that need to sit apart
-  — the compliance card, the calculator result and the closing CTA.
-- Terracotta is an accent only — buttons, one word in the hero headline, icon
-  strokes, one card border. Never a background wash.
+- The page is light (`#F7F7F4` alternating with `#FFFFFF`, `#F1EFE9` "stone" for
+  recessed panels) with dark **forest** (`#123A2F`) used deliberately for the
+  moments that should land: the calculator result, the featured price, the
+  closing call to action and the footer. No other dark surfaces.
+- Terracotta is an accent only: buttons, one word in the hero headline, icon
+  strokes, the step numbers. Never a background wash.
 - Two terracotta shades, for contrast rather than decoration: `#D2603F` for
-  large type, icon strokes, borders and glows; `#A8482B` (`clay-deep`) for
-  filled buttons and any terracotta text under 24px. `#D2603F` only reaches
-  3.6:1 on off-white and 3.8:1 behind white text, so it fails WCAG AA at body
-  sizes; `#A8482B` clears it at 5.4:1 and 5.7:1.
-- Headlines: weight 500, `-0.04em` tracking, 0.95–1.05 leading. Body 17px/1.65.
-- Nothing animates under `prefers-reduced-motion: reduce` — the marquee stops,
-  the counters snap, scrolling is not smoothed.
-- No fake testimonials, client logos or statistics anywhere on the page. The
-  marquee captions name customer *segments* we build for, not clients.
+  large type, icon strokes and glows; `#A8482B` (`clay-deep`) for filled buttons
+  and any terracotta text under 24px. `#D2603F` only reaches 3.6:1 on off-white,
+  so it fails WCAG AA at body sizes; `#A8482B` clears it at 5.4:1. On forest,
+  small text is `paper` at 75% or more, and `clay-soft` is for large figures
+  only.
+- Type is Schibsted Grotesk (variable) + Noto Sans Devanagari, **self-hosted**
+  through `@fontsource` and imported in `main.jsx`, so there is no third-party
+  font request and no flash of fallback type. Headlines: weight 600, `-0.04em`
+  tracking, 0.95-1.05 leading. Body 17px/1.65. No `tabular-nums` on currency:
+  Schibsted draws the comma too wide with it on.
+- Section labels are a small sentence-case pill (`SectionLabel`), not an
+  uppercase eyebrow. Buttons come in two tones: `PrimaryCTA` (terracotta) and
+  `tone="light"` for use on forest.
+- Every section that describes the product carries a small static picture of it
+  (the slot picker, the three languages, the hand-over), drawn in JSX from the
+  same tokens. They are `aria-hidden`: the paragraph beside them says it all.
+- Nothing animates under `prefers-reduced-motion: reduce`: the counters snap,
+  scrolling is not smoothed.
+- No fake testimonials, client logos or statistics anywhere on the page. "Built
+  for" names customer *segments*, not clients.
 - Every run of text on the page clears WCAG AA against its actually-painted
-  backdrop (verified by compositing each ancestor background, not by eye).
+  backdrop (composite each ancestor background; remember Tailwind v4 reports
+  colours as `oklch()`/`color-mix()`, so normalise through a canvas first).
 - **Motion is restrained and has to earn its place.** Still banned: glassmorphism
   (translucent-plus-blur) anywhere, grain/noise texture, ambient glow behind
-  every panel, and anything that floats or breathes on a loop. The only two
-  terracotta glows are the ones the original brief asked for — top-left of the
-  hero, and behind the hero photo.
+  every panel, and anything that floats or breathes on a loop. The one
+  terracotta glow is top-left of the hero; the phone sits on a flat stone panel.
   What motion there is: a short fade-up as sections enter view (`Reveal`, 14px
-  and 600ms — the page settling, not an effect), a reading-progress rule, 26px
-  of parallax drift on the hero photo, and the conversation replaying itself.
+  and 600ms — the page settling, not an effect), a reading-progress rule, and
+  the conversation playing itself out inside the phone.
   Every one of them is off under `prefers-reduced-motion`, and none of them
   gate content — a visitor who never sees an animation still reads the whole
   page.

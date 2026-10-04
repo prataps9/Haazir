@@ -38,7 +38,7 @@ export default function Nav() {
           : 'border-b border-transparent bg-transparent'
       }`}
     >
-      <nav className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-5 sm:px-8">
+      <nav className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-4 sm:px-8">
         <a href="#top" className="flex items-center" aria-label="haazir — home" onClick={() => setOpen(false)}>
           <Wordmark size={32} />
         </a>

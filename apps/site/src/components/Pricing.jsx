@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import { PrimaryCTA, SectionLabel } from './Brand'
 import Reveal from './Reveal'
 
@@ -6,7 +7,7 @@ const PLANS = [
     name: 'Build',
     price: '₹25,000',
     cadence: 'once',
-    badge: 'starts here',
+    badge: 'Starts here',
     body: 'Reading your history, writing the agent, getting it through Meta verification and onto your number.',
     points: ['Discovery afternoon', 'Agent built to your transcript', 'Verification & template approvals'],
     featured: true,
@@ -46,46 +47,63 @@ const OBJECTIONS = [
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="border-t border-line bg-white py-16 sm:py-24">
+    <section id="pricing" className="border-t border-line bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
         <Reveal>
           <SectionLabel>Pricing</SectionLabel>
-          <h2 className="max-w-[18ch] text-[clamp(1.9rem,4.2vw,2.9rem)]">
+          <h2 className="max-w-[18ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             Two numbers and a pass-through.
           </h2>
         </Reveal>
 
-        <div className="mt-10 grid gap-4 sm:gap-5 md:grid-cols-3">
+        <div className="mt-12 grid gap-4 sm:gap-5 md:grid-cols-3">
           {PLANS.map((plan, i) => (
             <Reveal key={plan.name} delay={i * 70}>
               <article
-                className={`relative flex h-full flex-col rounded-[1.25rem] border bg-paper p-6 lift transition-transform duration-200 hover:-translate-y-1 sm:p-7 ${
-                  plan.featured ? 'border-clay' : 'border-line'
+                className={`relative flex h-full flex-col rounded-[1.5rem] border p-7 sm:p-8 ${
+                  plan.featured
+                    ? 'border-forest bg-forest text-paper shadow-[0_30px_60px_-34px_rgb(11_42_33_/_0.7)]'
+                    : 'border-line bg-paper card'
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-3 left-6 rounded-full bg-clay-deep px-3 py-1 text-[0.7rem] font-medium tracking-[0.1em] text-white uppercase">
+                  <span className="absolute top-6 right-6 rounded-full bg-clay-deep px-3 py-1 text-[0.78rem] font-medium text-white">
                     {plan.badge}
                   </span>
                 )}
 
-                <h3 className="text-[1rem] font-medium tracking-[0.02em] text-ink/60 uppercase">
+                <h3
+                  className={`text-[1.15rem] font-semibold tracking-[-0.02em] ${
+                    plan.featured ? 'text-paper' : 'text-ink'
+                  }`}
+                >
                   {plan.name}
                 </h3>
 
-                <p className="mt-4 flex items-baseline gap-2">
-                  <span className="tabular text-[clamp(2rem,3.6vw,2.5rem)] leading-none font-medium tracking-[-0.045em]">
+                <p className="mt-5 flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-[clamp(2.2rem,3.8vw,2.8rem)] leading-none font-semibold tracking-[-0.045em]">
                     {plan.price}
                   </span>
-                  <span className="text-[0.9rem] text-ink/60">{plan.cadence}</span>
+                  <span className={`text-[0.92rem] ${plan.featured ? 'text-paper/75' : 'text-ink/65'}`}>
+                    {plan.cadence}
+                  </span>
                 </p>
 
-                <p className="mt-4 text-[0.95rem] text-ink/65">{plan.body}</p>
+                <p className={`mt-5 text-[0.96rem] ${plan.featured ? 'text-paper/85' : 'text-ink/70'}`}>
+                  {plan.body}
+                </p>
 
-                <ul className="mt-5 space-y-2 border-t border-line pt-5 text-[0.92rem] text-ink/65">
+                <ul
+                  className={`mt-6 space-y-2.5 border-t pt-6 text-[0.93rem] ${
+                    plan.featured ? 'border-paper/15 text-paper/85' : 'border-line text-ink/70'
+                  }`}
+                >
                   {plan.points.map((point) => (
-                    <li key={point} className="flex gap-3">
-                      <span className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-clay" aria-hidden="true" />
+                    <li key={point} className="flex items-center gap-3">
+                      <Check
+                        className={`h-4 w-4 shrink-0 ${plan.featured ? 'text-clay-soft' : 'text-clay-deep'}`}
+                        strokeWidth={2.4}
+                      />
                       {point}
                     </li>
                   ))}
@@ -97,7 +115,7 @@ export default function Pricing() {
 
         <Reveal delay={210} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
           <PrimaryCTA context="pricing">Ask what yours would cost</PrimaryCTA>
-          <p className="text-[0.92rem] text-ink/60">
+          <p className="text-[0.95rem] text-ink/65">
             No retainer lock-in. Cancel the monthly whenever you like.
           </p>
         </Reveal>
@@ -105,8 +123,8 @@ export default function Pricing() {
         <Reveal delay={90} className="mt-12 grid gap-4 border-t border-line pt-10 sm:gap-5 md:grid-cols-2">
           {OBJECTIONS.map(({ q, a }) => (
             <div key={q}>
-              <h3 className="text-[1.15rem]">{q}</h3>
-              <p className="mt-3 text-[0.95rem] text-ink/65">{a}</p>
+              <h3 className="text-[1.2rem]">{q}</h3>
+              <p className="mt-3 text-[0.95rem] text-ink/70">{a}</p>
             </div>
           ))}
         </Reveal>

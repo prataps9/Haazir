@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Link2, MoonStar } from 'lucide-react'
-import { PrimaryCTA, SectionLabel } from './Brand'
+import { JharokhaArch, PrimaryCTA, SectionLabel } from './Brand'
 import Reveal from './Reveal'
 import { groupIndian, indianShort, rupees } from '../lib/format'
 import { useAnimatedNumber } from '../lib/hooks'
@@ -64,16 +64,16 @@ export default function Calculator() {
   }, [enquiries, ticket, touched])
 
   return (
-    <section id="calculator" className="border-t border-line bg-white py-16 sm:py-24">
+    <section id="calculator" className="border-t border-line bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
         <Reveal>
           <SectionLabel>The cost of silence</SectionLabel>
-          <h2 className="max-w-[18ch] text-[clamp(1.9rem,4.2vw,2.9rem)]">
+          <h2 className="max-w-[18ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             Move two sliders. See the year you're giving away.
           </h2>
         </Reveal>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-16">
+        <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-16">
           {/* Inputs */}
           <div>
             <Slider
@@ -109,19 +109,19 @@ export default function Calculator() {
           </div>
 
           {/* Results */}
-          <div className="relative overflow-hidden rounded-[1.75rem] border border-line bg-stone p-7 lift sm:p-9">
-            <div
-              className="pointer-events-none absolute inset-0 grid-bg grid-mask-panel opacity-70"
+          <div className="relative overflow-hidden rounded-[1.75rem] bg-forest p-7 text-paper shadow-[0_30px_60px_-34px_rgb(11_42_33_/_0.7)] sm:p-9">
+            <JharokhaArch
+              className="pointer-events-none absolute -right-8 -bottom-10 h-56 w-56 text-paper/[0.05]"
               aria-hidden="true"
             />
 
             <div className="relative" aria-live="polite">
-              <p className="flex items-center gap-2.5 text-[0.75rem] font-medium tracking-[0.16em] text-ink/60 uppercase">
-                <MoonStar className="h-4 w-4 text-clay" strokeWidth={1.7} />
+              <p className="flex items-center gap-2.5 text-[0.9rem] font-medium text-paper/80">
+                <MoonStar className="h-4 w-4 text-clay-soft" strokeWidth={1.8} />
                 Every month, roughly
               </p>
 
-              <dl className="mt-7 space-y-6">
+              <dl className="mt-7 space-y-5">
                 <Stat
                   term="Enquiries that land after hours"
                   value={groupIndian(animatedAfterHours)}
@@ -134,18 +134,18 @@ export default function Calculator() {
                 />
               </dl>
 
-              <div className="mt-8 border-t border-line pt-7">
-                <dt className="text-[0.95rem] text-ink/65">Revenue walking away</dt>
+              <div className="mt-8 border-t border-paper/15 pt-7">
+                <dt className="text-[0.95rem] text-paper/80">Revenue walking away</dt>
                 <dd className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="tabular text-[clamp(2.6rem,7vw,3.9rem)] leading-none font-medium tracking-[-0.045em] text-clay-deep">
+                  <span className="text-[clamp(2.8rem,7vw,4.2rem)] leading-none font-semibold tracking-[-0.045em] text-white">
                     &#8377;{short.value}
                   </span>
                   {short.unit && (
-                    <span className="text-[1.35rem] font-medium tracking-[-0.03em] text-clay-deep">
+                    <span className="text-[1.4rem] font-medium tracking-[-0.03em] text-clay-soft">
                       {short.unit}
                     </span>
                   )}
-                  <span className="w-full text-[0.9rem] text-ink/60">
+                  <span className="w-full text-[0.9rem] text-paper/75">
                     {rupees(animatedValue)} a month &middot; {rupees(animatedValue * 12)} a year
                   </span>
                 </dd>
@@ -155,6 +155,7 @@ export default function Calculator() {
               <PrimaryCTA
                 context="calculator"
                 extra={`${rupees(value)}`}
+                tone="light"
                 className="mt-8 w-full sm:w-auto"
               >
                 Talk about this number
@@ -214,11 +215,11 @@ function ShareButton({ enquiries, ticket }) {
 
 function Stat({ term, value, unit }) {
   return (
-    <div className="flex flex-col gap-1 border-b border-line pb-5 last:border-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <dt className="text-[0.95rem] text-ink/65">{term}</dt>
-      <dd className="tabular shrink-0 text-[1.6rem] font-medium tracking-[-0.035em]">
+    <div className="flex flex-col gap-1 border-b border-paper/15 pb-5 last:border-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <dt className="text-[0.95rem] text-paper/80">{term}</dt>
+      <dd className="shrink-0 text-[1.65rem] font-semibold tracking-[-0.035em]">
         {value}
-        <span className="ml-1.5 text-[0.85rem] font-normal tracking-normal text-ink/60">
+        <span className="ml-1.5 text-[0.85rem] font-normal tracking-normal text-paper/75">
           {unit}
         </span>
       </dd>
@@ -233,7 +234,7 @@ function Slider({ id, label, value, min, max, step, onChange, display, suffix, c
         <label htmlFor={id} className="text-[1.02rem] text-ink/80">
           {label}
         </label>
-        <p className="tabular text-[1.3rem] font-medium tracking-[-0.035em]">
+        <p className="text-[1.3rem] font-semibold tracking-[-0.035em]">
           {display}
           <span className="ml-1.5 text-[0.82rem] font-normal tracking-normal text-ink/60">
             {suffix}

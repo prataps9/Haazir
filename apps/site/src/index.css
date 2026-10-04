@@ -9,11 +9,14 @@
   --color-paper: #f7f7f4;
   --color-line: #e2dfd8;
   --color-forest: #123a2f;
+  --color-forest-deep: #0b2a21;
   --color-stone: #f1efe9;
+  --color-mint: #dcefd5;
+  --color-tick: #2f84c6;
 
-  --font-sans: 'Schibsted Grotesk', ui-sans-serif, system-ui, -apple-system,
-    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-deva: 'Noto Sans Devanagari', 'Schibsted Grotesk', sans-serif;
+  --font-sans: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif,
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-deva: 'Noto Sans Devanagari', 'Schibsted Grotesk Variable', sans-serif;
 }
 
 @layer base {
@@ -36,7 +39,7 @@
   h1,
   h2,
   h3 {
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: -0.04em;
     line-height: 1;
     text-wrap: balance;
@@ -97,9 +100,19 @@
   mask-image: radial-gradient(80% 80% at 50% 12%, #000 0%, transparent 100%);
 }
 
-/* Warm cast + slight desaturation so photography sits inside the palette. */
-@utility photo-warm {
-  filter: saturate(0.82) contrast(1.02) brightness(0.97) sepia(0.12);
+/* The quiet dotted paper behind a chat, as WhatsApp does it. */
+@utility wa-wallpaper {
+  background-color: var(--color-stone);
+  background-image: radial-gradient(rgb(18 58 47 / 0.09) 1.2px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+
+/* Two-layer card shadow: a hairline plus one soft drop. */
+@utility card {
+  box-shadow:
+    0 1px 0 rgb(14 16 19 / 0.03),
+    0 1px 2px rgb(14 16 19 / 0.04),
+    0 18px 40px -24px rgb(14 16 19 / 0.14);
 }
 
 @keyframes haazir-marquee {

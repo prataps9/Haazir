@@ -27,11 +27,15 @@ export function LogoMark({ size = 34, className = '' }) {
   )
 }
 
-export function Wordmark({ size = 34, className = '' }) {
+export function Wordmark({ size = 34, tone = 'dark', className = '' }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <LogoMark size={size} />
-      <span className="text-[1.35rem] font-medium tracking-[-0.045em] lowercase text-ink">
+      <span
+        className={`text-[1.35rem] font-semibold tracking-[-0.045em] lowercase ${
+          tone === 'light' ? 'text-paper' : 'text-ink'
+        }`}
+      >
         haazir
       </span>
     </span>
@@ -48,11 +52,12 @@ export function WhatsAppGlyph({ className = 'h-[1.05em] w-[1.05em]' }) {
 }
 
 const base =
-  'inline-flex items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[0.96rem] font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,box-shadow] duration-200 will-change-transform active:scale-[0.97]'
+  'inline-flex items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[0.96rem] font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,box-shadow] duration-200 active:scale-[0.97]'
 
 /**
  * `context` decides which opening line lands in the customer's chat — see
  * OPENERS in lib/site.js. `extra` folds a detail into it (the calculator's figure).
+ * `tone="light"` is the same button for a dark panel.
  */
 export function PrimaryCTA({
   children = 'Start on WhatsApp',
@@ -60,13 +65,19 @@ export function PrimaryCTA({
   context = 'hero',
   extra = '',
   href,
+  tone = 'dark',
 }) {
+  const look =
+    tone === 'light'
+      ? 'bg-paper text-ink hover:bg-white'
+      : 'bg-clay-deep text-white shadow-[0_8px_18px_-10px_rgb(168_72_43_/_0.65)] hover:bg-[#8f3c23]'
+
   return (
     <a
       href={href ?? whatsappLink(context, extra)}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${base} bg-clay-deep text-white shadow-[0_6px_14px_-8px_rgb(168_72_43_/_0.5)] hover:-translate-y-0.5 hover:bg-[#8f3c23] active:translate-y-0 ${className}`}
+      className={`${base} ${look} ${className}`}
     >
       <WhatsAppGlyph />
       {children}
@@ -78,17 +89,27 @@ export function GhostCTA({ children, href = '#pricing', className = '' }) {
   return (
     <a
       href={href}
-      className={`${base} border border-line bg-white text-ink hover:-translate-y-0.5 hover:border-ink/25 active:translate-y-0 ${className}`}
+      className={`${base} border border-ink/15 bg-white text-ink hover:border-ink/30 ${className}`}
     >
       {children}
     </a>
   )
 }
 
-export function SectionLabel({ children }) {
+/** A small pill above a section heading. Sentence case, no rule, no shouting. */
+export function SectionLabel({ children, tone = 'dark' }) {
   return (
-    <p className="mb-5 flex items-center gap-2.5 text-[0.75rem] font-medium tracking-[0.16em] text-ink/60 uppercase">
-      <span className="h-px w-6 bg-clay" aria-hidden="true" />
+    <p
+      className={`mb-5 inline-flex items-center gap-2 rounded-full border py-1 pr-3.5 pl-2.5 text-[0.82rem] font-medium ${
+        tone === 'light'
+          ? 'border-paper/20 text-paper/80'
+          : 'border-line bg-white text-ink/70'
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${tone === 'light' ? 'bg-clay-soft' : 'bg-clay'}`}
+        aria-hidden="true"
+      />
       {children}
     </p>
   )
