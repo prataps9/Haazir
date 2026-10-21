@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream'
 import { eq } from 'drizzle-orm'
 import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
 import { announceMessage, markAccountError, type OutboundJob } from '@haazir/messaging'
@@ -42,10 +43,35 @@ export async function processOutbound(deps: Deps, job: OutboundJob, isLastAttemp
     return { sent: false }
   }
 
+  const graph = deps.graph(row.account)
   try {
-    const waMessageId = await deps
-      .graph(row.account)
-      .send(row.contact.waId, stored.content, stored.replyTo)
+    let content = stored.content
+    if (
+      (content.kind === 'document' || content.kind === 'image') &&
+      content.storageKey &&
+      !content.mediaId &&
+      !content.link
+    ) {
+      // Our own file (a brochure): upload it to Meta once, keep the id for retries.
+      const file = await deps.storage.get(content.storageKey).catch(() => null)
+      if (!file) {
+        await fail(deps, row.message.id, 'NO_FILE', 'The file to send is missing from storage')
+        return { sent: false }
+      }
+      const mimeType =
+        content.kind === 'document' ? (content.mimeType ?? file.contentType) : file.contentType
+      const mediaId = await graph.uploadMedia(
+        await toBuffer(file.body),
+        mimeType ?? 'application/pdf',
+        (content.kind === 'document' && content.filename) || 'file.pdf',
+      )
+      content = { ...content, mediaId }
+      await deps.db
+        .update(messages)
+        .set({ interactive: { ...stored, content } })
+        .where(eq(messages.id, row.message.id))
+    }
+    const waMessageId = await graph.send(row.contact.waId, content, stored.replyTo)
     await deps.db.update(messages).set({ waMessageId }).where(eq(messages.id, row.message.id))
     await announceMessage(deps.db, deps.events, row.message.orgId, row.message.id)
     return { sent: true, waMessageId }
@@ -66,6 +92,12 @@ export async function processOutbound(deps: Deps, job: OutboundJob, isLastAttemp
     }
     throw err
   }
+}
+
+async function toBuffer(body: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const chunk of body) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  return Buffer.concat(chunks)
 }
 
 async function fail(deps: Deps, messageId: string, code: string, title: string) {

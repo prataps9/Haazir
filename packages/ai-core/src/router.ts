@@ -48,6 +48,8 @@ Return the language and script of the LAST user message, its intent, any entitie
   documents), location (address, directions), certificate, payment (paying fees, links, receipts),
   complaint (upset, problem), talk_to_human (asks for a person or a call), greeting, thanks_bye, other.
 - entities.course: the course they mean, as written (e.g. "rscit", "tally"). Only what is in the text.
+- entities.date: a day they asked for, as written ("kal", "shanivar", "24 oct"). entities.name: the
+  student's name, only if they wrote it.
 Use earlier messages only to resolve references like "uski fees?".`
 
 /** No LLM available or it failed: script and language from the text, intent unknown. */

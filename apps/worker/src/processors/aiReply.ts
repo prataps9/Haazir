@@ -15,7 +15,9 @@ import {
   queueOutbound,
   type AiReplyJob,
 } from '@haazir/messaging'
+import { ensureLead } from '@haazir/coaching'
 import { AppError } from '@haazir/shared'
+import { applyActions } from '../agent'
 import type { Deps } from '../deps'
 
 /**
@@ -50,6 +52,15 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
   if (already) return { replied: false }
 
   const now = deps.now()
+  // Every enquiry is a lead from its first message (spec §16.5), whoever answers it.
+  await ensureLead(deps.db, {
+    orgId: job.orgId,
+    contactId: row.conversation.contactId,
+    actor: 'bot',
+  }).then((lead) => {
+    if (lead?.isNew) deps.events.emit(job.orgId, 'lead:updated', { leadId: lead.id })
+  })
+
   const botHasIt =
     row.conversation.mode === 'bot' ||
     (row.conversation.mode === 'human' &&
@@ -98,6 +109,13 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     }
   }
 
+  const actionTurn = {
+    orgId: job.orgId,
+    conversationId: row.conversation.id,
+    contactId: row.conversation.contactId,
+    messageId: job.messageId,
+  }
+
   switch (decision.kind) {
     case 'optout': {
       await optOutContact(deps.db, row.conversation.contactId, now)
@@ -107,6 +125,7 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     }
     case 'handoff': {
       const sent = await send()
+      await applyActions(deps, actionTurn, decision.actions)
       await markHandoff(deps.db, row.conversation.id, decision.reason, decision.summary, now)
       if (decision.unanswered) await recordUnanswered(deps.db, job.orgId, decision.unanswered, now)
       await recordTrace(deps.db, job, decision.trace, { reason: decision.reason })
@@ -116,7 +135,9 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     }
     case 'reply': {
       const sent = await send()
-      await markBotReplied(deps.db, row.conversation.id, now, decision.clarifyMisses ?? 0)
+      // After the reply, so the brochure or pin arrives below the message that promised it.
+      await applyActions(deps, actionTurn, decision.actions)
+      await markBotReplied(deps.db, row.conversation.id, now, decision.flowState)
       await announceConversation(deps.db, deps.events, job.orgId, row.conversation.id)
       await recordTrace(deps.db, job, decision.trace)
       return { replied: sent, decision: 'reply' }

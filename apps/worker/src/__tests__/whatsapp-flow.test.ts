@@ -328,7 +328,7 @@ describe("the brain's decisions, carried out", () => {
       intent: 'other',
       model: 'mock-smart',
       handedOff: false,
-      promptVersion: 'answer-v1',
+      promptVersion: 'answer-v2',
     })
   })
 
@@ -451,8 +451,10 @@ describe('live updates and push', () => {
         keys: { p256dh: 'p', auth: 'a' },
       },
     ])
-    h.deps.models = null // → handoff
-    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    h.deps.models = null // no AI, and not a question the rules can answer → handoff
+    await processInbound(h.deps, {
+      payload: inboundText({ id: 'wamid.IN1', body: 'Hostel ki suvidha hai kya?' }),
+    })
     await runQueues()
 
     const handoff = h.emitted.find((e) => e.event === 'handoff')
@@ -487,7 +489,9 @@ describe('live updates and push', () => {
       .set({ notifyPrefs: { handoff: { push: false, email: false } } })
       .where(eq(memberships.id, members[0]!.id))
     h.deps.models = null
-    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await processInbound(h.deps, {
+      payload: inboundText({ id: 'wamid.IN1', body: 'Hostel ki suvidha hai kya?' }),
+    })
     await runQueues()
     expect(pushed).toHaveLength(members.length - 1)
   })

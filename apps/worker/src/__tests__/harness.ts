@@ -6,7 +6,13 @@ import { setupServer } from 'msw/node'
 import { whatsappAccounts } from '@haazir/db'
 import { seed } from '@haazir/db/seed'
 import { createTestDb } from '@haazir/db/testing'
-import { graphClientFor, type AiReplyJob, type MediaJob, type OutboundJob } from '@haazir/messaging'
+import {
+  graphClientFor,
+  type AiReplyJob,
+  type MediaJob,
+  type OutboundJob,
+  type ReminderJob,
+} from '@haazir/messaging'
 import { encryptSecret } from '@haazir/shared/crypto'
 import { LocalStorage } from '@haazir/storage'
 import type { Models } from '@haazir/ai-core'
@@ -25,7 +31,14 @@ export function mockGraph() {
   let next = 1
   let failWith: { status: number; error: Record<string, unknown> } | null = null
 
+  const uploads: { filename: string; type: string }[] = []
   const server = setupServer(
+    http.post(`${GRAPH}/v26.0/${PHONE_NUMBER_ID}/media`, async ({ request }) => {
+      const form = await request.formData()
+      const file = form.get('file') as File
+      uploads.push({ filename: file.name, type: String(form.get('type')) })
+      return HttpResponse.json({ id: `media-${uploads.length}` })
+    }),
     http.post(`${GRAPH}/v26.0/${PHONE_NUMBER_ID}/messages`, async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>
       if (body.status === 'read') {
@@ -69,12 +82,14 @@ export function mockGraph() {
     server,
     sent,
     reads,
+    uploads,
     failNextSends(status: number, error: Record<string, unknown>) {
       failWith = { status, error }
     },
     reset() {
       sent.length = 0
       reads.length = 0
+      uploads.length = 0
       failWith = null
       next = 1
     },
@@ -124,7 +139,7 @@ export function mockModels(): Models {
 export interface Recorded<T> {
   name: string
   data: T
-  opts?: { jobId?: string }
+  opts?: { jobId?: string; delay?: number }
 }
 
 /** A queue that records jobs, de-duplicating by jobId like BullMQ does. */
@@ -135,7 +150,7 @@ function recorder<T>() {
     jobs,
     /** Makes the next add() throw, like Redis dropping out mid-job. */
     failNext: false,
-    async add(name: string, data: T, opts?: { jobId?: string }) {
+    async add(name: string, data: T, opts?: { jobId?: string; delay?: number }) {
       if (this.failNext) {
         this.failNext = false
         throw new Error('queue unavailable')
@@ -169,6 +184,7 @@ export async function createHarness() {
     aiReply: recorder<AiReplyJob>(),
     media: recorder<MediaJob>(),
     outbound: recorder<OutboundJob>(),
+    reminder: recorder<ReminderJob>(),
   }
   const storageDir = await mkdtemp(join(tmpdir(), 'haazir-worker-'))
   const silent = () => {}
@@ -207,6 +223,7 @@ export async function createHarness() {
         void emitted.push({ orgId, event, data }),
     },
     push: null,
+    encryptionKey: KEY,
     log: { debug: silent, info: silent, warn: silent, error: silent },
     now: () => now,
   }
@@ -278,6 +295,36 @@ export function inboundText(opts: {
     ).metadata.phone_number_id = opts.phoneNumberId
   }
   return body
+}
+
+/** A tapped reply button or list row (Graph API v26.0 shape). */
+export function inboundTap(opts: {
+  id: string
+  replyId: string
+  title: string
+  list?: boolean
+  ts?: number
+}) {
+  const kind = opts.list ? 'list_reply' : 'button_reply'
+  return envelope({
+    contacts: [
+      {
+        profile: { name: 'Anil Kumar' },
+        wa_id: '919812345678',
+        user_id: 'IN.13491208655302741918',
+      },
+    ],
+    messages: [
+      {
+        from: '919812345678',
+        user_id: 'IN.13491208655302741918',
+        id: opts.id,
+        timestamp: String(opts.ts ?? 1790407200),
+        type: 'interactive',
+        interactive: { type: kind, [kind]: { id: opts.replyId, title: opts.title } },
+      },
+    ],
+  })
 }
 
 export function inboundImage(id: string) {

@@ -32,4 +32,5 @@ export const JOB_OPTIONS = {
   outbound: { attempts: 5, backoff: { type: 'exponential', delay: 1000 }, ...keep },
   media: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, ...keep },
   ingest: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, ...keep },
+  reminder: { attempts: 3, backoff: { type: 'exponential', delay: 30000 }, ...keep },
 } as const

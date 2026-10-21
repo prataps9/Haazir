@@ -28,6 +28,13 @@ export interface InboundJob {
   receivedAt: string
 }
 
+/** Delayed and repeating automation work (spec §13). Job ids are deterministic, so scheduling twice schedules once. */
+export type ReminderJob =
+  | { kind: 'demo_reminder'; orgId: string; bookingId: string }
+  | { kind: 'demo_followup'; orgId: string; bookingId: string }
+  /** The daily fee run: statuses move, reminders go, links are made. No orgId = every org. */
+  | { kind: 'fee_sweep'; orgId?: string }
+
 export interface IngestJob {
   orgId: string
   sourceId: string
@@ -46,6 +53,14 @@ export interface OrgEvents {
  * ConversationSummary (views.ts); the dashboard upserts them by id.
  */
 export type OrgEventName =
-  'message:new' | 'message:updated' | 'conversation:updated' | 'handoff' | 'knowledge:updated'
+  | 'message:new'
+  | 'message:updated'
+  | 'conversation:updated'
+  | 'handoff'
+  | 'knowledge:updated'
+  /** A lead moved or changed (the bot booked a demo, staff dragged a card). */
+  | 'lead:updated'
+  | 'demo:updated'
+  | 'fee:updated'
 
 export const noEvents: OrgEvents = { emit: () => {} }

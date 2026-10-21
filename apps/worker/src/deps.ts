@@ -1,4 +1,5 @@
 import type { Models, Transcriber } from '@haazir/ai-core'
+import type { RazorpayFactory } from '@haazir/coaching'
 import type { AnyDatabase } from '@haazir/db'
 import type {
   AiReplyJob,
@@ -7,6 +8,7 @@ import type {
   OrgEvents,
   OutboundJob,
   PushSender,
+  ReminderJob,
   WhatsappAccount,
 } from '@haazir/messaging'
 import type { Storage } from '@haazir/storage'
@@ -42,6 +44,7 @@ export interface Deps {
     aiReply: JobQueue<AiReplyJob>
     media: JobQueue<MediaJob>
     outbound: JobQueue<OutboundJob>
+    reminder: JobQueue<ReminderJob>
   }
   storage: Storage
   graph(account: WhatsappAccount): GraphClient
@@ -53,6 +56,10 @@ export interface Deps {
   events: OrgEvents
   /** Null without VAPID keys: handoffs then show only in the inbox. */
   push: PushSender | null
+  /** Decrypts the institutes' Razorpay keys; without it no payment links are made. */
+  encryptionKey?: string
+  /** Razorpay client for an institute's keys (a fake in tests). */
+  razorpay?: RazorpayFactory
   log: Log
   now(): Date
 }

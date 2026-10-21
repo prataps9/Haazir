@@ -1,6 +1,14 @@
 import { Readable } from 'node:stream'
 import { and, eq } from 'drizzle-orm'
-import { createTools, decideReply, ingestSource, type Decision, type Models } from '@haazir/ai-core'
+import {
+  createToolContext,
+  createTools,
+  decideReply,
+  ingestSource,
+  loadFlowContext,
+  type Decision,
+  type Models,
+} from '@haazir/ai-core'
 import {
   contacts,
   conversations,
@@ -10,6 +18,7 @@ import {
   messages,
   whatsappAccounts,
   type AnyDatabase,
+  organizations,
 } from '@haazir/db'
 import { seed } from '@haazir/db/seed'
 import { createTestDb } from '@haazir/db/testing'
@@ -52,14 +61,9 @@ export async function createFixture(models: Models) {
  * in here (or in the question) was invented.
  */
 export async function factsCorpus(db: AnyDatabase, orgId: string): Promise<string> {
-  const ctx = {
-    db,
-    orgId,
-    today: new Date().toISOString().slice(0, 10),
-    facts: [] as string[],
-    toolCalls: [],
-    handoff: null,
-  }
+  const [orgRow] = await db.select().from(organizations).where(eq(organizations.id, orgId))
+  const flow = await loadFlowContext(db, orgRow!, new Date(), 'hinglish', null)
+  const ctx = await createToolContext(db, orgRow!, { contactId: orgId, flow })
   const tools = createTools(ctx)
   const call = (name: keyof typeof tools, input: object) =>
     (tools[name].execute as (i: object, o: object) => Promise<unknown>)(input, {
@@ -138,7 +142,8 @@ export async function runCase(
         await db
           .update(conversations)
           .set({
-            flowState: decision.clarifyMisses ? { clarifyMisses: decision.clarifyMisses } : null,
+            flowState:
+              decision.kind === 'reply' && decision.flowState ? { ...decision.flowState } : null,
           })
           .where(and(eq(conversations.id, conversation!.id), eq(conversations.orgId, orgId)))
       }

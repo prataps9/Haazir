@@ -16,7 +16,14 @@ export interface PlaygroundResult {
  */
 export async function askInPlayground(
   deps: PipelineDeps,
-  input: { orgId: string; ownerKey: string; question: string; reset?: boolean },
+  input: {
+    orgId: string
+    ownerKey: string
+    question: string
+    /** A tapped button or list row, so flows (demo booking) can be tried end to end. */
+    tap?: { id: string; title: string }
+    reset?: boolean
+  },
 ): Promise<PlaygroundResult> {
   const { db } = deps
   const waId = `playground-${input.ownerKey}`
@@ -45,8 +52,9 @@ export async function askInPlayground(
       orgId: input.orgId,
       conversationId: conversation!.id,
       direction: 'in',
-      type: 'text',
-      body: input.question,
+      type: input.tap ? 'interactive' : 'text',
+      body: input.tap?.title ?? input.question,
+      interactive: input.tap ? { kind: 'button_reply', ...input.tap } : null,
     })
     .returning()
 
@@ -61,8 +69,9 @@ export async function askInPlayground(
       orgId: input.orgId,
       conversationId: conversation!.id,
       direction: 'out',
-      type: 'text',
+      type: decision.content.kind === 'text' ? 'text' : 'interactive',
       body: decision.content.body,
+      interactive: { content: decision.content },
       sentBy: 'bot',
       status: 'read',
     })
@@ -73,10 +82,8 @@ export async function askInPlayground(
     .set({
       mode: 'bot',
       humanUntil: null,
-      flowState:
-        decision.kind === 'reply' && decision.clarifyMisses
-          ? { clarifyMisses: decision.clarifyMisses }
-          : null,
+      // Flows carry on in the playground too; nothing in `actions` is ever carried out here.
+      flowState: decision.kind === 'reply' ? { ...decision.flowState } : null,
     })
     .where(eq(conversations.id, conversation!.id))
 
@@ -92,4 +99,8 @@ export async function askInPlayground(
 
 async function resetPlayground(db: AnyDatabase, conversationId: string) {
   await db.delete(messages).where(eq(messages.conversationId, conversationId))
+  await db
+    .update(conversations)
+    .set({ flowState: null })
+    .where(eq(conversations.id, conversationId))
 }

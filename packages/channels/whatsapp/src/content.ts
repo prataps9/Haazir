@@ -26,8 +26,17 @@ export type OutboundContent =
       language: string
       components?: Record<string, unknown>[]
     }
-  | { kind: 'image'; mediaId?: string; link?: string; caption?: string }
-  | { kind: 'document'; mediaId?: string; link?: string; filename?: string; caption?: string }
+  | { kind: 'image'; mediaId?: string; link?: string; storageKey?: string; caption?: string }
+  | {
+      kind: 'document'
+      mediaId?: string
+      link?: string
+      /** Our own file (a brochure): the outbound worker uploads it and sets mediaId. */
+      storageKey?: string
+      mimeType?: string
+      filename?: string
+      caption?: string
+    }
   | { kind: 'location'; latitude: number; longitude: number; name?: string; address?: string }
 
 export const LIMITS = {
@@ -65,8 +74,11 @@ function required(label: string, value: string | undefined) {
   if (!value?.trim()) throw new ContentLimitError(`${label} can't be empty`)
 }
 
-function media(c: { mediaId?: string; link?: string }) {
-  if (!c.mediaId === !c.link) throw new ContentLimitError('Give exactly one of mediaId or link')
+function media(c: { mediaId?: string; link?: string; storageKey?: string }) {
+  const given = [c.mediaId, c.link].filter(Boolean).length
+  // A storageKey alone is fine before upload; Meta only ever sees the mediaId it becomes.
+  if (given === 0 && c.storageKey) return { id: `pending-upload:${c.storageKey}` }
+  if (given !== 1) throw new ContentLimitError('Give exactly one of mediaId or link')
   return c.mediaId ? { id: c.mediaId } : { link: c.link }
 }
 

@@ -74,6 +74,9 @@ export const DEMO_ORG = {
   city: 'Sikar',
   state: 'Rajasthan',
   address: 'Station Road, Sikar, Rajasthan 332001',
+  latitude: 27.6094,
+  longitude: 75.1399,
+  phone: '911000000100',
   defaultLanguage: 'hinglish' as const,
   status: 'active' as const,
   businessHours: {
@@ -351,5 +354,192 @@ export const DEMO_FAQS: { question: string; answer: string }[] = [
     question: 'RS-CIT ka exam kaise hota hai?',
     answer:
       'RS-CIT ka final exam VMOU leta hai, online, RKCL ke exam centre par. Exam ki tareekh course ke ant mein batayi jaati hai.',
+  },
+]
+
+/**
+ * Demo CRM for the first institute (spec §8: 30 contacts, 15 leads, 10
+ * students). Numbers start "91 1…", which no Indian mobile number does, so a
+ * demo can never message a real person.
+ */
+const NAMES = [
+  'Anil Kumar',
+  'Sunita Devi',
+  'Ravi Meena',
+  'Pooja Saini',
+  'Mahesh Jangid',
+  'Kavita Sharma',
+  'Suresh Choudhary',
+  'Neha Agarwal',
+  'Vikram Singh',
+  'Priya Kumawat',
+  'Deepak Yadav',
+  'Rekha Bhargava',
+  'Manoj Gurjar',
+  'Anjali Verma',
+  'Rajesh Swami',
+  'Komal Prajapat',
+  'Sanjay Bajiya',
+  'Meena Khandelwal',
+  'Harish Sain',
+  'Seema Jat',
+  'Rohit Soni',
+  'Jyoti Mahala',
+  'Ashok Dhaka',
+  'Mamta Gupta',
+  'Naresh Ola',
+  'Babita Sharma',
+  'Pankaj Beniwal',
+  'Geeta Kanwar',
+  'Lalit Joshi',
+  'Ritu Saini',
+] as const
+
+export const DEMO_CONTACTS = NAMES.map((name, i) => ({
+  waId: `9110000001${String(i + 1).padStart(2, '0')}`,
+  name,
+  profileName: name.split(' ')[0]!,
+  language: i % 5 === 0 ? 'hi' : 'hinglish',
+}))
+
+/** Stage, course and age (days ago) of the 15 open enquiries. Contacts 0–14. */
+export const DEMO_LEADS: {
+  contact: number
+  stage: 'new' | 'contacted' | 'demo_booked' | 'demo_done' | 'admitted' | 'lost'
+  course: string
+  daysAgo: number
+  source?: 'whatsapp' | 'walkin' | 'referral' | 'ad'
+  lostReason?: string
+}[] = [
+  { contact: 0, stage: 'new', course: 'RS-CIT', daysAgo: 0 },
+  { contact: 1, stage: 'new', course: 'Tally Prime + GST', daysAgo: 0 },
+  { contact: 2, stage: 'new', course: 'Python + AI', daysAgo: 1 },
+  { contact: 3, stage: 'contacted', course: 'RS-CIT', daysAgo: 2 },
+  { contact: 4, stage: 'contacted', course: 'Web Development', daysAgo: 3, source: 'referral' },
+  { contact: 5, stage: 'contacted', course: 'Tally Prime + GST', daysAgo: 4 },
+  { contact: 6, stage: 'demo_booked', course: 'RS-CIT', daysAgo: 1 },
+  { contact: 7, stage: 'demo_booked', course: 'Python + AI', daysAgo: 2 },
+  { contact: 8, stage: 'demo_booked', course: 'Tally Prime + GST', daysAgo: 1, source: 'ad' },
+  { contact: 9, stage: 'demo_done', course: 'Web Development', daysAgo: 5 },
+  { contact: 10, stage: 'demo_done', course: 'RS-CIT', daysAgo: 6, source: 'walkin' },
+  { contact: 11, stage: 'admitted', course: 'RS-CIT', daysAgo: 12 },
+  { contact: 12, stage: 'admitted', course: 'Tally Prime + GST', daysAgo: 20 },
+  { contact: 13, stage: 'lost', course: 'Python + AI', daysAgo: 9, lostReason: 'fees_high' },
+  { contact: 14, stage: 'lost', course: 'Web Development', daysAgo: 15, lostReason: 'too_far' },
+]
+
+/** Ten admitted students (contacts 11, 12 and 15–22), admitted this many days ago. */
+export const DEMO_STUDENTS: { contact: number; course: string; batch: string; daysAgo: number }[] =
+  [
+    { contact: 11, course: 'RS-CIT', batch: 'RS-CIT Subah', daysAgo: 12 },
+    { contact: 12, course: 'Tally Prime + GST', batch: 'Tally Subah', daysAgo: 20 },
+    { contact: 15, course: 'RS-CIT', batch: 'RS-CIT Shaam', daysAgo: 40 },
+    { contact: 16, course: 'RS-CIT', batch: 'RS-CIT Subah', daysAgo: 33 },
+    { contact: 17, course: 'Tally Prime + GST', batch: 'Tally Weekend', daysAgo: 58 },
+    { contact: 18, course: 'Web Development', batch: 'Web Dev Shaam', daysAgo: 27 },
+    { contact: 19, course: 'Python + AI', batch: 'Python Dopahar', daysAgo: 64 },
+    { contact: 20, course: 'RS-CIT', batch: 'RS-CIT Shaam', daysAgo: 5 },
+    { contact: 21, course: 'Web Development', batch: 'Web Dev Shaam', daysAgo: 88 },
+    { contact: 22, course: 'Tally Prime + GST', batch: 'Tally Subah', daysAgo: 3 },
+  ]
+
+/** Sample chat lines (Hinglish), inbound first, replayed into the first few conversations. */
+export const DEMO_THREADS: { contact: number; lines: [dir: 'in' | 'out', text: string][] }[] = [
+  {
+    contact: 0,
+    lines: [
+      ['in', 'Namaste, RS-CIT ki fees kitni hai?'],
+      ['out', '*RS-CIT* ki total fees *₹4,500* hai. Free demo class book karni hai?'],
+      ['in', 'Haan, kal subah ho sakti hai?'],
+      ['out', 'Ji bilkul. Subah 8 baje ka batch hai. Student ka naam bata dijiye.'],
+    ],
+  },
+  {
+    contact: 1,
+    lines: [
+      ['in', 'Tally ka course kitne mahine ka hai?'],
+      ['out', '*Tally Prime + GST* 3 mahine ka course hai. Batch timings bhej doon?'],
+      ['in', 'Haan bhejiye'],
+    ],
+  },
+  {
+    contact: 2,
+    lines: [
+      ['in', 'Python AI course mein kya sikhate ho?'],
+      ['out', 'Python basics se lekar AI tools tak. Free demo dekhna chahenge?'],
+      ['in', 'Weekend mein ho sakti hai?'],
+      ['out', 'Team aapko weekend ka slot confirm karegi.'],
+    ],
+  },
+  {
+    contact: 3,
+    lines: [
+      ['in', 'RSCIT ka exam kab hota hai?'],
+      ['out', 'Main aapki baat team se karwa raha hoon. Thodi der mein jawab milega.'],
+      ['in', 'Theek hai'],
+    ],
+  },
+  {
+    contact: 6,
+    lines: [
+      ['in', 'Demo book karni hai RS-CIT ki'],
+      ['out', 'Aapki demo class book ho gayi hai. Pata: Station Road, Sikar.'],
+      ['in', 'Dhanyavaad'],
+      ['out', 'Aapka swagat hai!'],
+    ],
+  },
+  {
+    contact: 7,
+    lines: [
+      ['in', 'Python ki demo kal hai na?'],
+      ['out', 'Ji haan, kal dopahar 2 baje. Aa rahe hain?'],
+      ['in', 'Haan aa raha hoon'],
+    ],
+  },
+  {
+    contact: 11,
+    lines: [
+      ['in', 'Meri agli kisht kab hai?'],
+      ['out', 'Aapki agli kisht ki jaankari team bhej degi.'],
+      ['in', 'Ok'],
+    ],
+  },
+  {
+    contact: 13,
+    lines: [
+      ['in', 'Python ki fees kuch kam ho sakti hai?'],
+      ['out', 'Fees mein badlav ke liye main team se baat karwata hoon.'],
+      ['in', 'Rehne do, bahut zyada hai'],
+    ],
+  },
+  {
+    contact: 9,
+    lines: [
+      ['in', 'Demo achhi lagi, admission kaise hoga?'],
+      ['out', 'Bahut badhiya! Admission ke liye Aadhaar aur 2 photo leke aaiye.'],
+      ['in', 'Kal aata hoon'],
+      ['out', 'Ji, intezaar rahega.'],
+    ],
+  },
+  {
+    contact: 10,
+    lines: [
+      ['in', 'RS-CIT ki shaam wali class kitne baje hai?'],
+      ['out', 'Shaam ka batch 5 baje se 7 baje tak hai.'],
+      ['in', 'Thik hai, sochke batata hoon'],
+      ['out', 'Zaroor. Koi sawaal ho to likhiye.'],
+    ],
+  },
+  {
+    contact: 4,
+    lines: [
+      ['in', 'Web development mein job milegi?'],
+      [
+        'out',
+        'Course mein HTML, CSS, JavaScript aur projects sikhaye jaate hain. Job ki guarantee hum nahi dete.',
+      ],
+      ['in', 'Achha. Fees?'],
+      ['out', '*Web Development* ki total fees ₹18,000 hai.'],
+    ],
   },
 ]

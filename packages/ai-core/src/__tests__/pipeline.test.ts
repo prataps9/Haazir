@@ -46,7 +46,7 @@ describe('answers from the database, never from memory', () => {
       intent: 'fee_query',
       language: 'hinglish',
       model: 'mock-smart',
-      promptVersion: 'answer-v1',
+      promptVersion: 'answer-v2',
     })
     expect(d.trace.toolCalls.map((t) => t.name)).toEqual(['get_course_details'])
     expect(d.trace.inputTokens).toBeGreaterThan(0)
@@ -150,9 +150,13 @@ describe('handing over', () => {
     })
   })
 
-  it('with no AI configured, every message goes to a person rather than unanswered', async () => {
-    const turn = await f.inbound('RSCIT ki fees kitni hai')
-    expect(await decideReply(deps(null), turn)).toMatchObject({
+  it('with no AI configured, nothing goes unanswered: the course card from the database, or a person', async () => {
+    const fee = await decideReply(deps(null), await f.inbound('RSCIT ki fees kitni hai'))
+    expect(fee).toMatchObject({ kind: 'reply', content: { kind: 'buttons' } })
+    expect('content' in fee && fee.content.body).toContain('₹4,500')
+    expect(
+      await decideReply(deps(null), await f.inbound('Exam ka result kab aayega?')),
+    ).toMatchObject({
       kind: 'handoff',
       reason: 'ai_unavailable',
     })
@@ -274,7 +278,7 @@ describe('menu and clarifying', () => {
       scripted({ text: 'x' }),
     )
     const first = await decideReply(deps(m), await f.inbound('asdf qwer'))
-    expect(first).toMatchObject({ kind: 'reply', clarifyMisses: 1 })
+    expect(first).toMatchObject({ kind: 'reply', flowState: { clarifyMisses: 1 } })
 
     await f.db.update(conversations).set({ flowState: { clarifyMisses: 1 } })
     const second = await decideReply(deps(m), await f.inbound('zxcv'))

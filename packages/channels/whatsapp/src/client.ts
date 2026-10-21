@@ -1,4 +1,4 @@
-import { buildMessagePayload, type OutboundContent } from './content'
+import { buildMessagePayload, ContentLimitError, type OutboundContent } from './content'
 
 /**
  * A Graph API error. `retryable` says whether sending the same request later
@@ -72,7 +72,8 @@ export class GraphClient {
         ...init,
         headers: {
           authorization: `Bearer ${this.options.accessToken}`,
-          'content-type': 'application/json',
+          // Multipart uploads set their own boundary.
+          ...(init.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
           ...init.headers,
         },
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 15_000),
@@ -107,6 +108,14 @@ export class GraphClient {
 
   /** Sends a message and returns Meta's id for it (`wamid.…`). */
   async send(to: string, content: OutboundContent, replyTo?: string): Promise<string> {
+    if (
+      (content.kind === 'document' || content.kind === 'image') &&
+      content.storageKey &&
+      !content.mediaId &&
+      !content.link
+    ) {
+      throw new ContentLimitError('Upload the file first (uploadMedia) and send its mediaId')
+    }
     const payload = buildMessagePayload(to, content, replyTo)
     const res = await this.request<{ messages?: { id: string }[] }>(
       `${this.options.phoneNumberId}/messages`,
@@ -116,6 +125,24 @@ export class GraphClient {
     if (!id)
       throw new GraphError(502, undefined, 'Graph API accepted the message but returned no id')
     return id
+  }
+
+  /**
+   * Uploads a file to Meta for sending (brochures). Returns the media id,
+   * valid for 30 days; the outbound worker uploads once per message.
+   */
+  async uploadMedia(data: Buffer, mimeType: string, filename: string): Promise<string> {
+    const form = new FormData()
+    form.set('messaging_product', 'whatsapp')
+    form.set('type', mimeType)
+    form.set('file', new Blob([new Uint8Array(data)], { type: mimeType }), filename)
+    const res = await this.request<{ id?: string }>(`${this.options.phoneNumberId}/media`, {
+      method: 'POST',
+      body: form,
+    })
+    if (!res.id)
+      throw new GraphError(502, undefined, 'Graph API accepted the upload but returned no id')
+    return res.id
   }
 
   /**

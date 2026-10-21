@@ -20,6 +20,7 @@
     "@aws-sdk/client-s3": "^3.1141.0",
     "@aws-sdk/lib-storage": "^3.1141.0",
     "@haazir/ai-core": "workspace:*",
+    "@haazir/coaching": "workspace:*",
     "@haazir/db": "workspace:*",
     "@haazir/messaging": "workspace:*",
     "@haazir/shared": "workspace:*",

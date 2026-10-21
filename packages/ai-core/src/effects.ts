@@ -9,6 +9,7 @@ import {
 import {
   HUMAN_MODE_MS,
   type Decision,
+  type FlowStore,
   type HandoffReason,
   type TraceData,
   type Turn,
@@ -69,12 +70,16 @@ export async function markHandoff(
     .where(eq(conversations.id, conversationId))
 }
 
-/** Human mode that timed out goes back to the bot, and a clean reply resets the clarify counter. */
+/**
+ * Human mode that timed out goes back to the bot, and the conversation keeps
+ * what the next message needs: a booking in progress, the clarify counter,
+ * the reply language.
+ */
 export async function markBotReplied(
   db: AnyDatabase,
   conversationId: string,
   now: Date,
-  clarifyMisses: number,
+  flowState: FlowStore | null,
 ) {
   await db
     .update(conversations)
@@ -88,7 +93,7 @@ export async function markBotReplied(
     )
   await db
     .update(conversations)
-    .set({ flowState: clarifyMisses ? { clarifyMisses } : null })
+    .set({ flowState: flowState ? { ...flowState } : null })
     .where(eq(conversations.id, conversationId))
 }
 

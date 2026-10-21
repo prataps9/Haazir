@@ -1,28 +1,48 @@
 import { pathToFileURL } from 'node:url'
 import { hashPassword } from 'better-auth/crypto'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import {
+  DEFAULT_TEMPLATES,
+  feeStatusOn,
+  scheduleInstallments,
+  templateKey,
+  type CopyLanguage,
+} from '@haazir/shared'
 import { loadEnv } from '@haazir/shared/env'
 import { createDb, type AnyDatabase } from './client'
 import {
   accounts,
   batches,
   botConfigs,
+  contacts,
+  conversations,
   courses,
+  demoBookings,
+  feeInstallments,
   knowledgeFaqs,
   knowledgeSources,
+  leadEvents,
+  leads,
   memberships,
+  messages,
   organizations,
   plans,
+  students,
   superAdmins,
+  templates,
   users,
 } from './schema'
 import {
   DEMO_BATCHES,
   DEMO_BOT_CONFIG,
+  DEMO_CONTACTS,
   DEMO_COURSES,
   DEMO_FAQS,
+  DEMO_LEADS,
   DEMO_ORG,
   DEMO_PASSWORD,
+  DEMO_STUDENTS,
+  DEMO_THREADS,
   DEMO_USERS,
   PLANS,
   SECOND_ORG,
@@ -33,7 +53,14 @@ import {
  * Idempotent: running it twice leaves the same rows. Grows each phase (courses,
  * contacts, leads, messages…) until it matches the demo institute in spec §8.
  */
-export async function seed(db: AnyDatabase, options: { passwords?: boolean } = {}) {
+export async function seed(
+  db: AnyDatabase,
+  options: {
+    passwords?: boolean
+    /** The demo CRM (contacts, chats, leads, students, fees). Off in tests that count rows. */
+    crm?: boolean
+  } = {},
+) {
   await db
     .insert(plans)
     .values(PLANS)
@@ -92,6 +119,9 @@ export async function seed(db: AnyDatabase, options: { passwords?: boolean } = {
 
   await seedCoaching(db, org.id)
   await seedCoaching(db, second.id)
+  await seedTemplates(db, org.id)
+  await seedTemplates(db, second.id)
+  if (options.crm) await seedCrm(db, org.id)
 
   if (options.passwords) {
     for (const user of [owner, staff, admin, secondOwner]) {
@@ -170,6 +200,222 @@ export async function seedCoaching(db: AnyDatabase, orgId: string, today = new D
   }
 }
 
+/**
+ * The automation templates (spec §13) as drafts, every language variant.
+ * Phase 5 submits them to Meta; existing rows are left alone.
+ */
+export async function seedTemplates(db: AnyDatabase, orgId: string) {
+  const rows = DEFAULT_TEMPLATES.flatMap((t) =>
+    (['hi', 'hinglish', 'en'] as CopyLanguage[]).map((lang) => {
+      const { name, language } = templateKey(t.purpose, lang)
+      const components: Record<string, unknown>[] = [{ type: 'BODY', text: t.body[lang] }]
+      if (t.buttons)
+        components.push({
+          type: 'BUTTONS',
+          buttons: t.buttons.map((b) => ({ type: 'QUICK_REPLY', text: b.title[lang] })),
+        })
+      return {
+        orgId,
+        name,
+        language,
+        category: t.category,
+        components,
+        variables: t.variables,
+        purpose: t.purpose,
+      }
+    }),
+  )
+  await db.insert(templates).values(rows).onConflictDoNothing()
+}
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
+/** Calendar date in India for a moment, YYYY-MM-DD. */
+const istDate = (d: Date) => new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10)
+
+/**
+ * The demo institute's people (spec §8): contacts with chat history, leads in
+ * every stage, booked demos, students and their installments. Skipped when the
+ * org already has leads, so re-seeding never duplicates or resets them.
+ */
+export async function seedCrm(db: AnyDatabase, orgId: string, now = new Date()) {
+  if ((await db.$count(leads, eq(leads.orgId, orgId))) > 0) return
+
+  const courseRows = await db.select().from(courses).where(eq(courses.orgId, orgId))
+  const batchRows = await db.select().from(batches).where(eq(batches.orgId, orgId))
+  const course = (short: string) => courseRows.find((c) => c.shortName === short)
+  const batch = (name: string) => batchRows.find((b) => b.name === name)
+  const ago = (days: number, minutes = 0) =>
+    new Date(now.getTime() - days * 86_400_000 - minutes * 60_000)
+
+  await db
+    .insert(contacts)
+    .values(
+      DEMO_CONTACTS.map((c, i) => ({
+        ...c,
+        orgId,
+        optInStatus: 'opted_in' as const,
+        optInSource: 'whatsapp_inbound',
+        lastInboundAt: ago(i % 7, i * 13),
+      })),
+    )
+    .onConflictDoNothing()
+  const contactRows = await db
+    .select()
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.orgId, orgId),
+        inArray(
+          contacts.waId,
+          DEMO_CONTACTS.map((c) => c.waId),
+        ),
+      ),
+    )
+  const contactAt = (i: number) => contactRows.find((c) => c.waId === DEMO_CONTACTS[i]!.waId)!
+
+  // Conversations and sample messages.
+  for (const thread of DEMO_THREADS) {
+    const contact = contactAt(thread.contact)
+    const lastAt = ago(thread.contact % 4, thread.contact * 7)
+    const [conversation] = await db
+      .insert(conversations)
+      .values({
+        orgId,
+        contactId: contact.id,
+        lastMessageAt: lastAt,
+        lastMessagePreview: thread.lines.at(-1)![1].slice(0, 120),
+        unreadCount: thread.lines.at(-1)![0] === 'in' ? 1 : 0,
+        serviceWindowExpiresAt: new Date(lastAt.getTime() + 24 * 3_600_000),
+      })
+      .onConflictDoNothing()
+      .returning()
+    if (!conversation) continue
+    await db.insert(messages).values(
+      thread.lines.map(([dir, text], j) => ({
+        orgId,
+        conversationId: conversation.id,
+        direction: dir,
+        type: 'text' as const,
+        body: text,
+        status: dir === 'out' ? ('read' as const) : null,
+        sentBy: dir === 'out' ? ('bot' as const) : null,
+        createdAt: new Date(lastAt.getTime() - (thread.lines.length - j) * 90_000),
+      })),
+    )
+  }
+
+  // Leads, their timelines, and demos for the ones that booked.
+  for (const l of DEMO_LEADS) {
+    const contact = contactAt(l.contact)
+    const c = course(l.course)
+    const created = ago(l.daysAgo, 30)
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        orgId,
+        contactId: contact.id,
+        stage: l.stage,
+        source: l.source ?? 'whatsapp',
+        courseId: c?.id,
+        studentName: contact.name,
+        lostReason: l.lostReason,
+        valuePaise: c?.feeTotalPaise,
+        stageChangedAt: ago(Math.max(0, l.daysAgo - 1)),
+        nextFollowupAt: l.stage === 'contacted' ? ago(-1) : null,
+        createdAt: created,
+      })
+      .returning()
+    await db.insert(leadEvents).values([
+      {
+        orgId,
+        leadId: lead!.id,
+        type: 'created',
+        toStage: 'new',
+        actor: 'bot',
+        createdAt: created,
+      },
+      ...(l.stage !== 'new'
+        ? [
+            {
+              orgId,
+              leadId: lead!.id,
+              type: 'stage',
+              fromStage: 'new' as const,
+              toStage: l.stage,
+              actor: 'bot' as const,
+              note: l.lostReason ?? null,
+              createdAt: ago(Math.max(0, l.daysAgo - 1)),
+            },
+          ]
+        : []),
+    ])
+    if (l.stage === 'demo_booked' || l.stage === 'demo_done') {
+      const b = batchRows.find((x) => x.courseId === c?.id)
+      // Booked demos are tomorrow at the batch's time; done ones were two days ago.
+      const day = l.stage === 'demo_booked' ? istDate(ago(-1)) : istDate(ago(2))
+      const startsAt = new Date(`${day}T${b?.startTime ?? '10:00:00'}+05:30`)
+      await db.insert(demoBookings).values({
+        orgId,
+        leadId: lead!.id,
+        contactId: contact.id,
+        courseId: c?.id,
+        batchId: b?.id,
+        studentName: contact.name ?? 'Student',
+        startsAt,
+        status: l.stage === 'demo_booked' ? 'booked' : 'attended',
+      })
+    }
+  }
+
+  // Students and their installments, with statuses as of today.
+  const today = istDate(now)
+  for (const st of DEMO_STUDENTS) {
+    const contact = contactAt(st.contact)
+    const c = course(st.course)
+    if (!c) continue
+    const [lead] = await db
+      .select()
+      .from(leads)
+      .where(and(eq(leads.orgId, orgId), eq(leads.contactId, contact.id)))
+    const admissionDate = istDate(ago(st.daysAgo))
+    const [student] = await db
+      .insert(students)
+      .values({
+        orgId,
+        contactId: contact.id,
+        leadId: lead?.id,
+        name: contact.name ?? 'Student',
+        courseId: c.id,
+        batchId: batch(st.batch)?.id,
+        admissionDate,
+        rollNo: `SCI-${String(st.contact + 100)}`,
+      })
+      .returning()
+    const plan = scheduleInstallments(c.installmentPlan, admissionDate)
+    await db.insert(feeInstallments).values(
+      plan.map((inst, k) => {
+        // The first installment is paid at admission; older students paid a second one too,
+        // except two who are behind, so "Overdue" has rows to show.
+        const behind = st.contact === 19 || st.contact === 21
+        const paid = k === 0 || (k === 1 && st.daysAgo > 60 && !behind)
+        const status = paid
+          ? 'paid'
+          : feeStatusOn({ dueDate: inst.dueDate, status: 'upcoming' }, today)
+        return {
+          orgId,
+          studentId: student!.id,
+          ...inst,
+          status,
+          paidAt: paid ? new Date(`${inst.dueDate}T11:00:00+05:30`) : null,
+          paidVia: paid ? ('cash' as const) : null,
+          receiptNo: paid ? `R-${String(st.contact * 10 + k).padStart(4, '0')}` : null,
+        }
+      }),
+    )
+  }
+  await db.update(organizations).set({ receiptSeq: 300 }).where(eq(organizations.id, orgId))
+}
+
 // Run directly: `pnpm db:seed`
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const env = loadEnv()
@@ -177,7 +423,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     // Demo logins are for local development; production accounts come from invites.
     const passwords = env.NODE_ENV !== 'production'
-    const { org, second } = await seed(db, { passwords })
+    const { org, second } = await seed(db, { passwords, crm: true })
     console.log(
       `Seeded: ${org.name}, ${org.city} and ${second.name}, ${second.city} (${PLANS.length} plans).`,
     )

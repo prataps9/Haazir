@@ -146,3 +146,31 @@ describe('media', () => {
     expect(await (await client.downloadMedia(info.url)).text()).toBe('hello')
   })
 })
+
+describe('GraphClient.uploadMedia', () => {
+  it('uploads a brochure as multipart and returns the media id', async () => {
+    let seen: { type: string | null; product: unknown; file?: File } | undefined
+    server.use(
+      http.post(`${BASE}/v26.0/1065/media`, async ({ request }) => {
+        const form = await request.formData()
+        seen = {
+          type: request.headers.get('content-type'),
+          product: form.get('messaging_product'),
+          file: form.get('file') as File,
+        }
+        return HttpResponse.json({ id: 'media-123' })
+      }),
+    )
+    const id = await client.uploadMedia(Buffer.from('%PDF-1.4'), 'application/pdf', 'rscit.pdf')
+    expect(id).toBe('media-123')
+    expect(seen?.type).toMatch(/^multipart\/form-data; boundary=/)
+    expect(seen?.product).toBe('whatsapp')
+    expect(seen?.file?.name).toBe('rscit.pdf')
+  })
+
+  it('refuses to send a stored file that was never uploaded', async () => {
+    await expect(
+      client.send('9198', { kind: 'document', storageKey: 'orgs/x/brochure.pdf' }),
+    ).rejects.toThrow('Upload the file first')
+  })
+})

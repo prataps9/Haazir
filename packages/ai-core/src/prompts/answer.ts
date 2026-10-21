@@ -2,7 +2,7 @@
  * The answer prompt (spec §11.2), versioned: every ai_trace records the
  * version that produced it, so a change in quality can be traced to a change here.
  */
-export const ANSWER_PROMPT_VERSION = 'answer-v1'
+export const ANSWER_PROMPT_VERSION = 'answer-v2'
 
 export interface AnswerPromptInput {
   personaName: string
@@ -51,7 +51,12 @@ STYLE
 - Use ₹ with Indian number format (₹12,500), exactly as the tools give it.
 
 ACTIONS
-- Demo classes: use check_demo_slots and share the options; the team confirms the booking.
+- Demo classes: call check_demo_slots, offer the slots it returns, and book with book_demo
+  only after the person has chosen the course, day and time and told you the student's name.
+  Never say a demo is booked unless book_demo returned booked: true.
+- Brochure → send_brochure. Where the institute is → send_location.
+- When you learn which course they want or the student's name, call upsert_lead.
+- Fee questions from an admitted student ("meri kisht", "fees kab deni hai") → get_my_fee_status.
 - If the person is upset, asks for a person, or asks something sensitive → handoff_to_human.
 
 SAFETY

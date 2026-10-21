@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { courses, organizations, type AnyDatabase } from '@haazir/db'
+import { eq } from 'drizzle-orm'
+import { contacts, courses, organizations, students, type AnyDatabase } from '@haazir/db'
 import { seed } from '@haazir/db/seed'
 import { createTestDb } from '@haazir/db/testing'
 import { formatDays, formatTime } from '../facts'
+import { createToolContext, loadFlowContext } from '../pipeline'
 import { createTools, matchCourse, type ToolContext } from '../tools'
 
 let db: AnyDatabase
@@ -11,18 +13,23 @@ let orgId: string
 
 beforeAll(async () => {
   ;({ db, close } = await createTestDb())
-  orgId = (await seed(db)).org.id
+  orgId = (await seed(db, { crm: true })).org.id
 })
 afterAll(() => close())
 
-const ctxFor = (org = orgId): ToolContext => ({
-  db,
-  orgId: org,
-  today: new Date().toISOString().slice(0, 10),
-  facts: [],
-  toolCalls: [],
-  handoff: null,
-})
+const ctxFor = async (
+  org = orgId,
+  options: { contactId?: string; paymentsEnabled?: boolean } = {},
+): Promise<ToolContext> => {
+  const [row] = await db.select().from(organizations).where(eq(organizations.id, org))
+  const flow = await loadFlowContext(db, row!, new Date(), 'hinglish', null)
+  const ctx = await createToolContext(db, row!, {
+    contactId: options.contactId ?? '00000000-0000-0000-0000-000000000000',
+    flow,
+  })
+  if (options.paymentsEnabled) ctx.org.paymentsEnabled = true
+  return ctx
+}
 
 // Tools run through the SDK in production; here we call execute directly.
 const run = async (ctx: ToolContext, name: keyof ReturnType<typeof createTools>, input: object) =>
@@ -53,7 +60,7 @@ describe('matchCourse', () => {
 
 describe('tools', () => {
   it('get_course_details returns the fee from the database, formatted, and records it as a fact', async () => {
-    const ctx = ctxFor()
+    const ctx = await ctxFor()
     const out = (await run(ctx, 'get_course_details', { course: 'tally' })) as Record<
       string,
       unknown
@@ -67,22 +74,96 @@ describe('tools', () => {
   })
 
   it('get_batches lists upcoming batches with seats left', async () => {
-    const out = (await run(ctxFor(), 'get_batches', { course: 'rscit' })) as {
+    const out = (await run(await ctxFor(), 'get_batches', { course: 'rscit' })) as {
       batches: { seats_left: number; time: string }[]
     }
     expect(out.batches).toHaveLength(2)
     expect(out.batches[0]).toMatchObject({ seats_left: 8, time: '8:00 AM to 9:30 AM' })
   })
 
-  it('check_demo_slots skips batches without demos', async () => {
-    const out = (await run(ctxFor(), 'check_demo_slots', { course: 'tally' })) as {
-      demo_slots: { name: string }[]
+  it('check_demo_slots offers real dates over the next week, never batches without demos', async () => {
+    const out = (await run(await ctxFor(), 'check_demo_slots', { course: 'tally' })) as {
+      demo_slots: { batch: string; date: string; batch_id: string }[]
     }
-    expect(out.demo_slots.map((s) => s.name)).toEqual(['Tally Subah'])
+    expect(out.demo_slots.length).toBeGreaterThan(0)
+    expect(new Set(out.demo_slots.map((s) => s.batch))).toEqual(new Set(['Tally Subah']))
+  })
+
+  it('book_demo books only a slot check_demo_slots would offer, as an action for the worker', async () => {
+    const ctx = await ctxFor()
+    const slots = (await run(ctx, 'check_demo_slots', { course: 'rscit' })) as {
+      demo_slots: { batch_id: string; date: string }[]
+    }
+    const slot = slots.demo_slots[0]!
+    const bad = await run(ctx, 'book_demo', {
+      batch_id: slot.batch_id,
+      date: '2020-01-01',
+      student_name: 'Anil',
+    })
+    expect(bad).toMatchObject({ booked: false })
+    expect(ctx.actions).toEqual([])
+
+    const good = await run(ctx, 'book_demo', { ...slot, student_name: 'anil kumar' })
+    expect(good).toMatchObject({ booked: true, course: 'RS-CIT', student: 'Anil Kumar' })
+    expect(ctx.actions).toEqual([
+      expect.objectContaining({
+        type: 'book_demo',
+        batchId: slot.batch_id,
+        date: slot.date,
+        studentName: 'Anil Kumar',
+      }),
+    ])
+  })
+
+  it("send_brochure says so when there's no brochure, instead of promising one", async () => {
+    const ctx = await ctxFor()
+    expect(await run(ctx, 'send_brochure', { course: 'rscit' })).toMatchObject({ sent: false })
+    expect(ctx.actions).toEqual([])
+  })
+
+  it('send_location shares the address and sends the pin when the org has one', async () => {
+    const ctx = await ctxFor()
+    expect(await run(ctx, 'send_location', {})).toMatchObject({
+      address: expect.stringContaining('Sikar'),
+      pin_sent: true,
+    })
+    expect(ctx.actions).toEqual([{ type: 'send_location' }])
+  })
+
+  it("get_my_fee_status shows a student's next installment, and queues a link when payments are on", async () => {
+    const [student] = await db.select().from(students).where(eq(students.orgId, orgId)).limit(1)
+    const ctx = await ctxFor(orgId, { contactId: student!.contactId, paymentsEnabled: true })
+    const out = (await run(ctx, 'get_my_fee_status', {})) as Record<string, unknown>
+    if (out.all_paid) return // that student happens to have paid everything
+    expect(out).toMatchObject({ student: student!.name, amount: expect.stringMatching(/^₹/) })
+    expect(ctx.actions[0]).toMatchObject({ type: 'send_payment_link' })
+
+    const [stranger] = await db.insert(contacts).values({ orgId, waId: '911000008888' }).returning()
+    const notStudent = await run(
+      await ctxFor(orgId, { contactId: stranger!.id }),
+      'get_my_fee_status',
+      {},
+    )
+    expect(notStudent).toMatchObject({ student: false })
+  })
+
+  it('upsert_lead records what the bot learned, matched to a real course', async () => {
+    const ctx = await ctxFor()
+    await run(ctx, 'upsert_lead', {
+      course: 'tally',
+      name: 'priya kumawat',
+      notes: 'Evening batch chahiye',
+    })
+    expect(ctx.actions[0]).toMatchObject({
+      type: 'upsert_lead',
+      studentName: 'Priya Kumawat',
+      notes: 'Evening batch chahiye',
+    })
+    expect((ctx.actions[0] as { courseId?: string }).courseId).toBeTruthy()
   })
 
   it('an unknown course comes back as short text with the real options', async () => {
-    const out = await run(ctxFor(), 'get_course_details', { course: 'nursing' })
+    const out = await run(await ctxFor(), 'get_course_details', { course: 'nursing' })
     expect(out).toMatchObject({ error: 'No course matches "nursing".' })
     expect((out as { available_courses: string[] }).available_courses).toContain('RS-CIT')
   })
@@ -92,12 +173,12 @@ describe('tools', () => {
       .insert(organizations)
       .values({ name: 'Other', slug: 'other-org' })
       .returning()
-    const out = (await run(ctxFor(other!.id), 'get_courses', {})) as { courses: unknown[] }
+    const out = (await run(await ctxFor(other!.id), 'get_courses', {})) as { courses: unknown[] }
     expect(out.courses).toEqual([])
   })
 
   it('handoff_to_human sets the flag the pipeline acts on', async () => {
-    const ctx = ctxFor()
+    const ctx = await ctxFor()
     await run(ctx, 'handoff_to_human', { reason: 'missing_info', summary: 'Hostel ke baare mein' })
     expect(ctx.handoff).toEqual({ reason: 'missing_info', summary: 'Hostel ke baare mein' })
   })

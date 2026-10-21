@@ -12,6 +12,7 @@ import {
   type IngestJob,
   type MediaJob,
   type OutboundJob,
+  type ReminderJob,
 } from '@haazir/messaging'
 import { JOB_OPTIONS, QUEUES } from '@haazir/shared'
 import { createStorage } from '@haazir/storage'
@@ -24,6 +25,7 @@ import { processInbound } from './processors/inbound'
 import { processIngest } from './processors/ingest'
 import { processMedia } from './processors/media'
 import { processOutbound } from './processors/outbound'
+import { processReminder } from './processors/reminder'
 import { redisKeyValue, redisLocks } from './redis'
 
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' })
@@ -41,6 +43,7 @@ const systemQueue = new Queue(QUEUES.system, { connection })
 const aiReplyQueue = queue<AiReplyJob>(QUEUES.aiReply, JOB_OPTIONS.aiReply)
 const mediaQueue = queue<MediaJob>(QUEUES.media, JOB_OPTIONS.media)
 const outboundQueue = queue<OutboundJob>(QUEUES.outbound, JOB_OPTIONS.outbound)
+const reminderQueue = queue<ReminderJob>(QUEUES.reminder, JOB_OPTIONS.reminder)
 
 // Without a key the worker still runs: the bot hands every chat to staff
 // rather than leaving people unanswered.
@@ -89,7 +92,9 @@ const deps: Deps = {
     aiReply: { add: (name, data, opts) => aiReplyQueue.add(name, data, opts) },
     media: { add: (name, data, opts) => mediaQueue.add(name, data, opts) },
     outbound: { add: (name, data, opts) => outboundQueue.add(name, data, opts) },
+    reminder: { add: (name, data, opts) => reminderQueue.add(name, data, opts) },
   },
+  encryptionKey: env.ENCRYPTION_KEY,
   storage: createStorage(env),
   graph: (account) => graphClientFor(account, env),
   models,
@@ -108,6 +113,16 @@ async function scheduleHeartbeat() {
     'heartbeat',
     { every: HEARTBEAT_EVERY_MS },
     { name: 'heartbeat', opts: { removeOnComplete: 10, removeOnFail: 50 } },
+  )
+  // Fee reminders go out at 10 AM India time, every day (spec §13).
+  await reminderQueue.upsertJobScheduler(
+    'fee-sweep',
+    { pattern: '0 10 * * *', tz: 'Asia/Kolkata' },
+    {
+      name: 'fee_sweep',
+      data: { kind: 'fee_sweep' },
+      opts: { removeOnComplete: 30, removeOnFail: 100 },
+    },
   )
 }
 await scheduleHeartbeat()
@@ -146,6 +161,10 @@ const workers = [
     connection,
     concurrency: 3,
   }),
+  new Worker<ReminderJob>(QUEUES.reminder, (job) => processReminder(deps, job.data), {
+    connection,
+    concurrency: 5,
+  }),
 ]
 
 for (const worker of workers) {
@@ -173,7 +192,7 @@ async function shutdown(signal: string) {
   force.unref()
   await Promise.allSettled(workers.map((w) => w.close()))
   await Promise.allSettled(
-    [systemQueue, aiReplyQueue, mediaQueue, outboundQueue].map((q) => q.close()),
+    [systemQueue, aiReplyQueue, mediaQueue, outboundQueue, reminderQueue].map((q) => q.close()),
   )
   await Promise.allSettled([connection.quit(), database.close()])
   logger.info('bye')

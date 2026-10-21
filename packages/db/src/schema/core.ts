@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -38,6 +39,10 @@ export const organizations = pgTable('organizations', {
   state: text(),
   address: text(),
   mapsUrl: text(),
+  /** For the WhatsApp location pin the bot sends ("Institute kahan hai?"). */
+  latitude: doublePrecision(),
+  longitude: doublePrecision(),
+  phone: text(),
   defaultLanguage: languageEnum().notNull().default('hinglish'),
   timezone: text().notNull().default(DEFAULT_TIMEZONE),
   planId: uuid().references(() => plans.id, { onDelete: 'restrict' }),
@@ -45,6 +50,8 @@ export const organizations = pgTable('organizations', {
   businessHours: jsonb().$type<BusinessHours>(),
   brand: jsonb().$type<{ logoUrl?: string; displayName?: string }>(),
   onboardingStep: integer().notNull().default(0),
+  /** Last fee receipt number issued (R-0001, R-0002…), bumped atomically. */
+  receiptSeq: integer().notNull().default(0),
   ...timestamps,
 })
 

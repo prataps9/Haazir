@@ -19,6 +19,8 @@ const reply = (body: string): Decision => ({
   kind: 'reply',
   content: { kind: 'text', body },
   trace,
+  actions: [],
+  flowState: null,
 })
 const corpus = '{"total_fee":"₹4,500"} Station Road, Sikar 332001'
 

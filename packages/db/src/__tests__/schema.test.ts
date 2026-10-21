@@ -6,15 +6,31 @@ import {
   accounts,
   batches,
   botConfigs,
+  contacts,
   courses,
+  feeInstallments,
   knowledgeFaqs,
+  leads,
   memberships,
+  messages,
   organizations,
   plans,
+  students,
+  templates,
   users,
 } from '../schema'
 import { seed } from '../seed'
-import { DEMO_BATCHES, DEMO_COURSES, DEMO_FAQS, DEMO_PASSWORD, PLANS } from '../seed-data'
+import { DEFAULT_TEMPLATES } from '@haazir/shared'
+import {
+  DEMO_BATCHES,
+  DEMO_CONTACTS,
+  DEMO_COURSES,
+  DEMO_FAQS,
+  DEMO_LEADS,
+  DEMO_PASSWORD,
+  DEMO_STUDENTS,
+  PLANS,
+} from '../seed-data'
 import { createTestDb } from '../testing'
 
 // PGlite is real Postgres compiled to WASM, in-process: these tests run the
@@ -33,7 +49,7 @@ afterAll(async () => {
 })
 
 describe('migrations', () => {
-  it('creates the tables so far (core, WhatsApp, AI + coaching, auth)', async () => {
+  it('creates the tables so far (core, WhatsApp, AI + coaching, auth, CRM + fees)', async () => {
     const result = rows<{ table_name: string }>(
       await db.execute(
         sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
@@ -48,17 +64,24 @@ describe('migrations', () => {
       'contacts',
       'conversations',
       'courses',
+      'demo_bookings',
+      'fee_installments',
       'invites',
       'knowledge_chunks',
       'knowledge_faqs',
       'knowledge_sources',
+      'lead_events',
+      'leads',
       'memberships',
       'messages',
+      'org_payment_accounts',
       'organizations',
       'plans',
       'push_subscriptions',
       'sessions',
+      'students',
       'super_admins',
+      'templates',
       'unanswered_questions',
       'users',
       'verifications',
@@ -83,8 +106,8 @@ describe('migrations', () => {
 
 describe('seed', () => {
   it('is idempotent', async () => {
-    await seed(db)
-    await seed(db)
+    await seed(db, { crm: true })
+    await seed(db, { crm: true })
     expect(await db.$count(plans)).toBe(PLANS.length)
     expect(await db.$count(users)).toBe(4)
     expect(await db.$count(memberships)).toBe(3)
@@ -93,6 +116,23 @@ describe('seed', () => {
     expect(await db.$count(batches)).toBe(DEMO_BATCHES.length * 2)
     expect(await db.$count(botConfigs)).toBe(2)
     expect(await db.$count(knowledgeFaqs)).toBe(DEMO_FAQS.length * 2)
+    // The demo CRM (spec §8), first institute only.
+    expect(await db.$count(contacts)).toBe(DEMO_CONTACTS.length)
+    expect(await db.$count(leads)).toBe(DEMO_LEADS.length)
+    expect(await db.$count(students)).toBe(DEMO_STUDENTS.length)
+    expect(await db.$count(messages)).toBeGreaterThanOrEqual(30)
+    expect(await db.$count(feeInstallments)).toBeGreaterThan(DEMO_STUDENTS.length)
+    // Every template purpose in three language variants, for both institutes.
+    expect(await db.$count(templates)).toBe(DEFAULT_TEMPLATES.length * 3 * 2)
+  })
+
+  it('seeds fees that match each course plan, with some overdue to chase', async () => {
+    const rows = await db.select().from(feeInstallments)
+    expect(rows.every((r) => Number.isInteger(r.amountPaise))).toBe(true)
+    expect(rows.some((r) => r.status === 'overdue')).toBe(true)
+    expect(rows.some((r) => r.status === 'paid' && r.receiptNo)).toBe(true)
+    // Every seeded number is outside India's mobile range: no demo can text a real person.
+    expect((await db.select().from(contacts)).every((c) => /^911/.test(c.waId))).toBe(true)
   })
 
   it('sets demo passwords only when asked, hashed the way Better Auth verifies them', async () => {

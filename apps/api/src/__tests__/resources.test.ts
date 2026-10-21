@@ -127,7 +127,9 @@ describe('Bot ko sikhayein (knowledge)', () => {
 
   it('the test box runs the real pipeline (here without an AI key: it says it would hand over)', async () => {
     const staff = await t.login(t.users.staff)
-    const res = await staff.post('/api/v1/knowledge/test').send({ question: 'RSCIT ki fees?' })
+    const res = await staff
+      .post('/api/v1/knowledge/test')
+      .send({ question: 'Hostel ki suvidha hai?' })
     expect(res.body).toMatchObject({ kind: 'handoff', handoff: { reason: 'ai_unavailable' } })
     // What the person would have been told, as plain text for the dashboard.
     expect(res.body.reply).toEqual(expect.any(String))
