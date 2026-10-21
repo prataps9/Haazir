@@ -9,6 +9,7 @@ import {
   plans,
   whatsappAccounts,
 } from '@haazir/db'
+import { seedTemplates } from '@haazir/db/seed'
 import { encryptSecret } from '@haazir/shared/crypto'
 import { AppError } from '@haazir/shared'
 import { GraphError } from '@haazir/whatsapp'
@@ -101,6 +102,8 @@ export function adminRouter(
     await db
       .insert(botConfigs)
       .values({ orgId: org!.id, optoutKeywords: ['stop', 'unsubscribe', 'band karo', 'मत भेजो'] })
+    // The automation messages (spec §13) as drafts, ready to submit to Meta.
+    await seedTemplates(db, org!.id)
     const { token } = await createInvite(db, {
       orgId: org!.id,
       email: body.ownerEmail,

@@ -8,6 +8,7 @@ import {
   type InboundJob,
   type IngestJob,
   type OutboundJob,
+  type ReminderJob,
 } from '@haazir/messaging'
 import { JOB_OPTIONS, QUEUES } from '@haazir/shared'
 import { createStorage } from '@haazir/storage'
@@ -38,6 +39,7 @@ const queue = <T>(name: string, opts: object) =>
 const inboundQueue = queue<InboundJob>(QUEUES.inbound, JOB_OPTIONS.inbound)
 const outboundQueue = queue<OutboundJob>(QUEUES.outbound, JOB_OPTIONS.outbound)
 const ingestQueue = queue<IngestJob>(QUEUES.ingest, JOB_OPTIONS.ingest)
+const reminderQueue = queue<ReminderJob>(QUEUES.reminder, JOB_OPTIONS.reminder)
 
 if (!env.META_APP_SECRET || !env.META_WEBHOOK_VERIFY_TOKEN) {
   logger.warn('META_APP_SECRET / META_WEBHOOK_VERIFY_TOKEN not set: WhatsApp webhooks answer 503')
@@ -83,6 +85,7 @@ const app = createApp({
   redis,
   corsOrigins: [env.APP_URL],
   appUrl: env.APP_URL,
+  apiUrl: env.API_URL,
   whatsapp: {
     appSecret: env.META_APP_SECRET,
     verifyToken: env.META_WEBHOOK_VERIFY_TOKEN,
@@ -93,6 +96,7 @@ const app = createApp({
   queues: {
     outbound: { add: (name, data, opts) => outboundQueue.add(name, data, opts) },
     ingest: { add: (name, data, opts) => ingestQueue.add(name, data, opts) },
+    reminder: { add: (name, data, opts) => reminderQueue.add(name, data, opts) },
   },
   storage: createStorage(env),
   models,
@@ -125,7 +129,9 @@ async function shutdown(signal: string) {
 
   await new Promise<void>((resolve) => realtime.io.close(() => resolve()))
   server.close(async () => {
-    await Promise.allSettled([inboundQueue.close(), outboundQueue.close(), ingestQueue.close()])
+    await Promise.allSettled(
+      [inboundQueue, outboundQueue, ingestQueue, reminderQueue].map((q) => q.close()),
+    )
     await Promise.allSettled([database.close(), redis.quit(), queueConnection.quit()])
     logger.info('bye')
     process.exit(0)

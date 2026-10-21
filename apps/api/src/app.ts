@@ -7,15 +7,23 @@ import { orgScope, requireSuperAdmin, requireUser } from './auth/middleware'
 import type { AppDeps } from './deps'
 import { errorHandler, notFound } from './middleware/errorHandler'
 import { adminRouter } from './routes/admin'
+import { analyticsRouter } from './routes/analytics'
 import { botRouter } from './routes/bot'
 import { contactsRouter } from './routes/contacts'
 import { conversationsRouter } from './routes/conversations'
+import { coursesRouter } from './routes/courses'
+import { demosRouter } from './routes/demos'
+import { feesRouter } from './routes/fees'
 import { healthRouter } from './routes/health'
 import { invitesRouter } from './routes/invites'
 import { knowledgeRouter } from './routes/knowledge'
+import { leadsRouter } from './routes/leads'
 import { mediaRouter } from './routes/media'
 import { meRouter, membersRouter } from './routes/me'
+import { orgRouter } from './routes/org'
 import { pushRouter } from './routes/push'
+import { studentsRouter } from './routes/students'
+import { razorpayWebhookRouter } from './webhooks/razorpay'
 import { whatsappWebhookRouter } from './webhooks/whatsapp'
 
 export type { AppDeps }
@@ -49,6 +57,7 @@ export function createApp(deps: AppDeps) {
 
   app.use(healthRouter(deps))
   app.use(whatsappWebhookRouter(deps.whatsapp))
+  app.use(razorpayWebhookRouter(deps))
 
   app.use(cors({ origin: deps.corsOrigins, credentials: true }))
   app.all('/api/v1/auth/*splat', toNodeHandler(deps.auth))
@@ -70,6 +79,13 @@ export function createApp(deps: AppDeps) {
   api.use(knowledgeRouter(deps))
   api.use(botRouter(deps))
   api.use(mediaRouter(deps))
+  api.use(orgRouter(deps))
+  api.use(coursesRouter(deps))
+  api.use(leadsRouter(deps))
+  api.use(demosRouter(deps))
+  api.use(studentsRouter(deps))
+  api.use(feesRouter(deps))
+  api.use(analyticsRouter(deps))
 
   app.use('/api/v1', api)
 

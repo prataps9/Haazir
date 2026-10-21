@@ -29,3 +29,5 @@ export {
   type DemoState,
   type FlowContext,
 } from './flows/demo'
+export * from './extract'
+export { pdfPages } from './ingest/pdf'

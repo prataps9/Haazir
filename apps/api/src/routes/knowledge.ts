@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { and, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { askInPlayground } from '@haazir/ai-core'
+import { askInPlayground, extractBrochure, pdfPages } from '@haazir/ai-core'
 import { knowledgeFaqs, knowledgeSources, unansweredQuestions, type AnyDatabase } from '@haazir/db'
 import { AppError } from '@haazir/shared'
 import { requireRole } from '../auth/middleware'
@@ -245,15 +245,49 @@ export function knowledgeRouter(
     res.status(201).json(faq)
   })
 
+  /**
+   * Brochure auto-extract (spec §12): a draft of courses, fees, batches and
+   * hours from an uploaded PDF, for onboarding to show as editable cards.
+   * Writes nothing; the owner confirms each course before the bot uses it.
+   */
+  router.post('/knowledge/extract-brochure', teach, async (req, res) => {
+    const org = orgOf(req)
+    const { sourceId } = z.object({ sourceId: z.uuid() }).parse(req.body)
+    const [source] = await db
+      .select()
+      .from(knowledgeSources)
+      .where(and(eq(knowledgeSources.id, sourceId), eq(knowledgeSources.orgId, org.id)))
+    if (!source) throw new AppError('NOT_FOUND', 'Source not found')
+    if (source.type !== 'pdf' || !source.fileKey)
+      throw new AppError('VALIDATION', 'Pick an uploaded PDF brochure')
+    if (!deps.models)
+      throw new AppError('UNAVAILABLE', 'AI is not set up yet, so fill in the courses by hand')
+    const file = await deps.storage.get(source.fileKey)
+    const chunks: Buffer[] = []
+    for await (const c of file.body) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c))
+    const pages = await pdfPages(new Uint8Array(Buffer.concat(chunks)))
+    const text = pages
+      .map((p) => p.text)
+      .join('\n\n')
+      .trim()
+    if (!text) throw new AppError('VALIDATION', 'No text found in this PDF (is it a scan?)')
+    res.json({ draft: await extractBrochure(deps.models.fast, text) })
+  })
+
   /** The test box: the real pipeline on a private conversation, nothing sent. */
   router.post('/knowledge/test', async (req, res) => {
     const org = orgOf(req)
-    const { question, reset } = z
-      .object({ question: z.string().trim().min(1).max(1000), reset: z.boolean().optional() })
+    const { question, reset, tap } = z
+      .object({
+        question: z.string().trim().min(1).max(1000),
+        reset: z.boolean().optional(),
+        // A tapped button or list row, so the demo booking can be tried end to end.
+        tap: z.object({ id: z.string().min(1).max(256), title: z.string().max(80) }).optional(),
+      })
       .parse(req.body)
     const result = await askInPlayground(
       { db, models: deps.models, now: deps.now },
-      { orgId: org.id, ownerKey: userOf(req).id, question, reset },
+      { orgId: org.id, ownerKey: userOf(req).id, question, reset, tap },
     )
     res.json(playgroundView(result))
   })
@@ -269,6 +303,11 @@ export function playgroundView(result: Awaited<ReturnType<typeof askInPlayground
     kind: d.kind,
     reply: content?.body ?? null,
     buttons: content?.kind === 'buttons' ? content.buttons : [],
+    list:
+      content?.kind === 'list'
+        ? { buttonLabel: content.buttonLabel, rows: content.sections.flatMap((x) => x.rows) }
+        : null,
+    actions: 'actions' in d ? d.actions.map((a) => a.type) : [],
     handoff: d.kind === 'handoff' ? { reason: d.reason, summary: d.summary } : null,
     understood:
       'trace' in d

@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
-import { contacts, conversations, messages, type AnyDatabase } from '@haazir/db'
+import { contacts, conversations, leads, messages, type AnyDatabase } from '@haazir/db'
 import type { OrgEvents } from './queue'
 
 /**
@@ -19,6 +19,10 @@ export const conversationSummary = {
   handoffSummary: conversations.handoffSummary,
   handoffAt: conversations.handoffAt,
   assignedUserId: conversations.assignedUserId,
+  /** Where this person's enquiry stands (spec §16.4: stage pill and filter chips). */
+  leadStage: sql<
+    string | null
+  >`(select ${leads.stage} from ${leads} where ${leads.contactId} = ${conversations.contactId} and ${leads.orgId} = ${conversations.orgId})`,
   contact: {
     id: contacts.id,
     name: contacts.name,

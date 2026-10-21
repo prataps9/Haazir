@@ -80,12 +80,16 @@ export function botRouter(deps: Pick<AppDeps, 'db' | 'models' | 'now'>) {
   /** The settings page's playground: same as the test box, separate history per person. */
   router.post('/bot/playground', async (req, res) => {
     const org = orgOf(req)
-    const { text, reset } = z
-      .object({ text: z.string().trim().min(1).max(1000), reset: z.boolean().optional() })
+    const { text, reset, tap } = z
+      .object({
+        text: z.string().trim().min(1).max(1000),
+        reset: z.boolean().optional(),
+        tap: z.object({ id: z.string().min(1).max(256), title: z.string().max(80) }).optional(),
+      })
       .parse(req.body)
     const result = await askInPlayground(
       { db, models: deps.models, now: deps.now },
-      { orgId: org.id, ownerKey: `settings-${userOf(req).id}`, question: text, reset },
+      { orgId: org.id, ownerKey: `settings-${userOf(req).id}`, question: text, reset, tap },
     )
     res.json(playgroundView(result))
   })

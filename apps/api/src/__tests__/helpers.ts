@@ -3,7 +3,7 @@ import { contacts, conversations, messages, whatsappAccounts, type AnyDatabase }
 import { seed } from '@haazir/db/seed'
 import { DEMO_PASSWORD, DEMO_USERS, SECOND_ORG_OWNER } from '@haazir/db/seed-data'
 import { createTestDb } from '@haazir/db/testing'
-import type { IngestJob, OrgEventName, OutboundJob } from '@haazir/messaging'
+import type { IngestJob, OrgEventName, OutboundJob, ReminderJob } from '@haazir/messaging'
 import { LocalStorage } from '@haazir/storage'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -21,6 +21,7 @@ export function recorders() {
   return {
     outbound: [] as OutboundJob[],
     ingest: [] as IngestJob[],
+    reminder: [] as { data: ReminderJob; opts?: { jobId?: string; delay?: number } }[],
     events: [] as { orgId: string; event: OrgEventName; data: unknown }[],
   }
 }
@@ -85,6 +86,7 @@ export async function createTestApp(overrides: Partial<AppDeps> = {}) {
     logger,
     corsOrigins: [ORIGIN],
     appUrl: ORIGIN,
+    apiUrl: 'http://localhost:4000',
     database: { ping: async () => {} },
     redis: { ping: async () => 'PONG', get: async () => null },
     whatsapp: { inboundQueue: { add: async () => undefined } },
@@ -93,6 +95,7 @@ export async function createTestApp(overrides: Partial<AppDeps> = {}) {
     queues: {
       outbound: { add: async (_n, data) => void rec.outbound.push(data) },
       ingest: { add: async (_n, data) => void rec.ingest.push(data) },
+      reminder: { add: async (_n, data, opts) => void rec.reminder.push({ data, opts }) },
     },
     storage: new LocalStorage(storageDir),
     models: null,

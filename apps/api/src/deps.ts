@@ -1,10 +1,12 @@
 import type { Models } from '@haazir/ai-core'
+import type { RazorpayFactory } from '@haazir/coaching'
 import type { AnyDatabase } from '@haazir/db'
 import type {
   IngestJob,
   JobQueue,
   OrgEvents,
   OutboundJob,
+  ReminderJob,
   WhatsappAccount,
 } from '@haazir/messaging'
 import type { Storage } from '@haazir/storage'
@@ -24,16 +26,25 @@ export interface AppDeps extends HealthDeps {
   corsOrigins: string[]
   /** Where invite links point (the dashboard's URL). */
   appUrl: string
+  /** This API's public URL, for webhooks other services call (Razorpay). */
+  apiUrl: string
   whatsapp: WhatsappWebhookDeps
   db: AnyDatabase
   auth: Auth
-  queues: { outbound: JobQueue<OutboundJob>; ingest: JobQueue<IngestJob> }
+  queues: {
+    outbound: JobQueue<OutboundJob>
+    ingest: JobQueue<IngestJob>
+    /** Demo reminders and follow-ups, scheduled when staff book a demo. */
+    reminder: JobQueue<ReminderJob>
+  }
   storage: Storage
   /** Null when no LLM is configured (the playground then says so). */
   models: Models | null
   events: OrgEvents
   graph(account: WhatsappAccount): GraphClient
   encryptionKey?: string
+  /** Razorpay client for an institute's own keys (a fake in tests). */
+  razorpay?: RazorpayFactory
   vapidPublicKey?: string
   now(): Date
 }

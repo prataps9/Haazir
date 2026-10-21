@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { contacts, conversations, memberships, messages, users } from '@haazir/db'
+import { moveLead } from '@haazir/coaching'
+import { contacts, conversations, leads, memberships, messages, users } from '@haazir/db'
 import { HUMAN_MODE_MS } from '@haazir/ai-core'
 import { conversationSummary, messageView, queueOutbound } from '@haazir/messaging'
-import { AppError } from '@haazir/shared'
+import { AppError, LEAD_STAGES } from '@haazir/shared'
 import type { AppDeps } from '../deps'
 import { audit, cursor, orgOf, userOf, uuidParam } from '../lib/http'
 
@@ -38,6 +39,7 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
       .object({
         mode: z.enum(['bot', 'human', 'closed']).optional(),
         unread: z.enum(['true', 'false']).optional(),
+        stage: z.enum(LEAD_STAGES).optional(),
         q: z.string().trim().max(100).optional(),
         cursor: z.string().optional(),
       })
@@ -49,6 +51,9 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
       sql`${contacts.waId} not like 'playground-%'`,
       q.mode ? eq(conversations.mode, q.mode) : undefined,
       q.unread === 'true' ? sql`${conversations.unreadCount} > 0` : undefined,
+      q.stage
+        ? sql`exists (select 1 from ${leads} where ${leads.contactId} = ${conversations.contactId} and ${leads.orgId} = ${conversations.orgId} and ${leads.stage} = ${q.stage})`
+        : undefined,
       q.q
         ? or(
             ilike(contacts.name, `%${q.q}%`),
@@ -153,6 +158,23 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
         entityId: id,
         diff: { via: 'reply' },
       })
+    }
+    // A person on the team has now answered: a new enquiry becomes "contacted".
+    const [lead] = await db
+      .select({ id: leads.id, stage: leads.stage })
+      .from(leads)
+      .where(and(eq(leads.orgId, org.id), eq(leads.contactId, current.contact.id)))
+    if (lead?.stage === 'new') {
+      await moveLead(db, {
+        orgId: org.id,
+        leadId: lead.id,
+        to: 'contacted',
+        actor: 'user',
+        actorUserId: user.id,
+        onlyForward: true,
+        now,
+      })
+      deps.events.emit(org.id, 'lead:updated', { leadId: lead.id })
     }
     const [view] = await db.select(messageView).from(messages).where(eq(messages.id, message.id))
     deps.events.emit(org.id, 'message:new', view)
