@@ -363,6 +363,7 @@ export async function seedCrm(db: AnyDatabase, orgId: string, now = new Date()) 
         studentName: contact.name ?? 'Student',
         startsAt,
         status: l.stage === 'demo_booked' ? 'booked' : 'attended',
+        createdAt: ago(Math.max(0, l.daysAgo - 1)),
       })
     }
   }

@@ -5,6 +5,8 @@
  *   pnpm whatsapp:simulate "RS-CIT ki fees kitni hai?"
  *   pnpm whatsapp:simulate --from 919812345678 --name "Anil Kumar" "Hello"
  *   pnpm whatsapp:simulate --repeat 2 "Same delivery twice"   # duplicate test
+ *   pnpm whatsapp:simulate --tap menu_demo "Free demo"            # a reply button
+ *   pnpm whatsapp:simulate --tap demo_day:2026-10-23 --list "Kal"  # a list row
  */
 import { parseArgs } from 'node:util'
 import { loadEnv } from '@haazir/shared/env'
@@ -17,6 +19,9 @@ const { values, positionals } = parseArgs({
     from: { type: 'string', default: '919812345678' },
     name: { type: 'string', default: 'Anil Kumar' },
     repeat: { type: 'string', default: '1' },
+    // The id of a tapped reply button or list row; the text is its title.
+    tap: { type: 'string' },
+    list: { type: 'boolean', default: false },
   },
 })
 
@@ -47,8 +52,14 @@ const body = JSON.stringify({
                 from: values.from,
                 id,
                 timestamp: String(Math.floor(Date.now() / 1000)),
-                type: 'text',
-                text: { body: text },
+                ...(values.tap
+                  ? {
+                      type: 'interactive',
+                      interactive: values.list
+                        ? { type: 'list_reply', list_reply: { id: values.tap, title: text } }
+                        : { type: 'button_reply', button_reply: { id: values.tap, title: text } },
+                    }
+                  : { type: 'text', text: { body: text } }),
               },
             ],
           },

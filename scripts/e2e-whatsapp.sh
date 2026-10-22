@@ -7,7 +7,10 @@
 # WhatsApp env vars set (CI sets them; locally, your .env does).
 set -euo pipefail
 
-cleanup() { kill "${PIDS[@]}" 2>/dev/null || true; }
+# Each background job gets its own process group (set -m), so cleanup stops
+# the whole tree: `pnpm whatsapp:mock` leaves a tsx child behind otherwise.
+set -m
+cleanup() { for pid in "${PIDS[@]}"; do kill -- "-$pid" 2>/dev/null || true; done; }
 PIDS=()
 trap cleanup EXIT
 

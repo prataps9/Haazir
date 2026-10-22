@@ -70,7 +70,15 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
         .from(aiTraces)
         .where(and(eq(aiTraces.orgId, org.id), inRange(aiTraces.createdAt))),
       count(demoBookings, and(eq(demoBookings.orgId, org.id), inRange(demoBookings.createdAt))),
-      count(students, and(eq(students.orgId, org.id), inRange(students.createdAt))),
+      // By admission date: a student entered today for last week's admission isn't today's.
+      count(
+        students,
+        and(
+          eq(students.orgId, org.id),
+          gte(students.admissionDate, startDate),
+          lt(students.admissionDate, addDays(startDate, range === 'week' ? 7 : 1)),
+        ),
+      ),
       db
         .select({ total: sql<number>`coalesce(sum(${feeInstallments.amountPaise}), 0)::int` })
         .from(feeInstallments)

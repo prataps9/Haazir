@@ -89,6 +89,8 @@ export const envSchema = z
     STORAGE_SECRET_KEY: optional(),
     STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
 
+    // Only overridden to point at a local mock (pnpm whatsapp:mock answers Razorpay too).
+    RAZORPAY_BASE_URL: url().default('https://api.razorpay.com'),
     RAZORPAY_KEY_ID: optional(),
     RAZORPAY_KEY_SECRET: optional(),
     RAZORPAY_WEBHOOK_SECRET: optional(),

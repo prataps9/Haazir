@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { Queue } from 'bullmq'
 import { Redis } from 'ioredis'
 import { AiNotConfiguredError, createModels, type Models } from '@haazir/ai-core'
+import { createRazorpay } from '@haazir/coaching'
 import { createDb } from '@haazir/db'
 import {
   graphClientFor,
@@ -103,6 +104,7 @@ const app = createApp({
   events: realtime.events,
   graph: (account) => graphClientFor(account, env),
   encryptionKey: env.ENCRYPTION_KEY,
+  razorpay: (credentials) => createRazorpay({ ...credentials, baseUrl: env.RAZORPAY_BASE_URL }),
   vapidPublicKey: env.VAPID_PUBLIC_KEY,
   now: () => new Date(),
 })

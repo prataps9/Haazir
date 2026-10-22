@@ -2,6 +2,7 @@ import { Emitter } from '@socket.io/redis-emitter'
 import { Queue, Worker, type Job } from 'bullmq'
 import { Redis } from 'ioredis'
 import { AiNotConfiguredError, createModels, createTranscriber, type Models } from '@haazir/ai-core'
+import { createRazorpay } from '@haazir/coaching'
 import { createDb } from '@haazir/db'
 import {
   createWebPushSender,
@@ -95,6 +96,7 @@ const deps: Deps = {
     reminder: { add: (name, data, opts) => reminderQueue.add(name, data, opts) },
   },
   encryptionKey: env.ENCRYPTION_KEY,
+  razorpay: (credentials) => createRazorpay({ ...credentials, baseUrl: env.RAZORPAY_BASE_URL }),
   storage: createStorage(env),
   graph: (account) => graphClientFor(account, env),
   models,

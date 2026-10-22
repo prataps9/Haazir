@@ -7,7 +7,9 @@
  *
  * It accepts sends and read receipts like the real API, prints them, and then
  * does what Meta does next: posts signed `sent`, `delivered` and `read`
- * statuses back to our webhook. Never used in production.
+ * statuses back to our webhook. It also answers media uploads, "test
+ * connection", and Razorpay's payment links (RAZORPAY_BASE_URL pointed
+ * here), so fees can be tried end to end. Never used in production.
  */
 import { createServer } from 'node:http'
 import { loadEnv } from '@haazir/shared/env'
@@ -59,6 +61,35 @@ createServer((req, res) => {
   let raw = ''
   req.on('data', (c) => (raw += c))
   req.on('end', () => {
+    res.setHeader('content-type', 'application/json')
+    // Razorpay: payment links (create) and the authenticated read used as "test connection".
+    if (req.url?.startsWith('/v1/payment_links')) {
+      if (req.method === 'POST') {
+        const body = JSON.parse(raw || '{}') as { amount: number; reference_id: string }
+        const id = `plink_mock${Date.now()}${++counter}`
+        console.log(`→ razorpay link ₹${body.amount / 100} for ${body.reference_id}: ${id}`)
+        return res.end(
+          JSON.stringify({ id, short_url: `https://rzp.io/i/${id}`, status: 'created' }),
+        )
+      }
+      return res.end(JSON.stringify({ count: 0, items: [] }))
+    }
+    const media = req.url?.match(/^\/(v\d+\.\d)\/([^/]+)\/media$/)
+    if (req.method === 'POST' && media) {
+      console.log(`→ media upload (${raw.length} bytes)`)
+      return res.end(JSON.stringify({ id: `media-mock-${++counter}` }))
+    }
+    const phone = req.url?.match(/^\/(v\d+\.\d)\/(\d+)\?fields=/)
+    if (req.method === 'GET' && phone) {
+      return res.end(
+        JSON.stringify({
+          id: phone[2],
+          display_phone_number: '+91 90000 00001',
+          verified_name: 'Mock Institute',
+          quality_rating: 'GREEN',
+        }),
+      )
+    }
     const match = req.url?.match(/^\/(v\d+\.\d)\/([^/]+)\/messages$/)
     if (req.method === 'POST' && match) {
       const [, version, phoneNumberId] = match
@@ -71,7 +102,6 @@ createServer((req, res) => {
         text?: { body?: string }
         interactive?: { body?: { text?: string } }
       }
-      res.setHeader('content-type', 'application/json')
       if (body.status === 'read') {
         console.log(`→ read receipt ${body.message_id}${body.typing_indicator ? ' + typing' : ''}`)
         return res.end(JSON.stringify({ success: true }))
@@ -97,7 +127,6 @@ createServer((req, res) => {
       return
     }
     res.statusCode = 404
-    res.setHeader('content-type', 'application/json')
     res.end(
       JSON.stringify({
         error: { code: 100, message: `Mock has no route for ${req.method} ${req.url}` },

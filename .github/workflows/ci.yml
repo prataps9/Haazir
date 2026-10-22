@@ -82,6 +82,8 @@ jobs:
       - run: pnpm build
       - name: WhatsApp loop end to end (mock Meta)
         run: ./scripts/e2e-whatsapp.sh
+      - name: Coaching journey end to end (enquiry to receipt; mock Meta and Razorpay)
+        run: ./scripts/e2e-coaching.sh
 
   evals:
     # The 73 coaching conversations against real models (spec §11.7). Runs

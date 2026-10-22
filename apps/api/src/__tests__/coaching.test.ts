@@ -399,7 +399,8 @@ describe('Home: aaj ka hisaab', () => {
       demos: expect.any(Array),
       feesDue: expect.any(Array),
     })
-    expect(res.body.admissions).toBeGreaterThanOrEqual(2)
+    // The walk-in admitted today counts; the lead admitted on 1 Oct doesn't.
+    expect(res.body.admissions).toBeGreaterThanOrEqual(1)
     // The cash payment today; the Razorpay one is dated by Razorpay's own timestamp.
     expect(res.body.feesCollectedPaise).toBeGreaterThanOrEqual(6_000_00)
   })
