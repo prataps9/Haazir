@@ -317,7 +317,20 @@
     "testWouldHandoff": "बॉट यह चैट टीम को सौंप देता: {{reason}}",
     "testReset": "नई बातचीत",
     "aiOff": "AI अभी चालू नहीं है, इसलिए बॉट हर चैट टीम को सौंपेगा। AI key सेट होने पर यहाँ असली जवाब दिखेंगे।",
-    "suggestions": ["RS-CIT की फीस कितनी है?", "Tally ka batch kab se hai?", "Institute kahan hai?"]
+    "suggestions": [
+      "RS-CIT की फीस कितनी है?",
+      "Tally ka batch kab se hai?",
+      "Institute kahan hai?"
+    ],
+    "testActions": "WhatsApp पर बॉट यह भी करता",
+    "actionNames": {
+      "book_demo": "डेमो बुक करता",
+      "upsert_lead": "लीड अपडेट करता",
+      "send_brochure": "ब्रोशर भेजता",
+      "send_location": "नक्शे की लोकेशन भेजता",
+      "send_payment_link": "भुगतान लिंक भेजता",
+      "demo_answer": "डेमो पर जवाब दर्ज करता"
+    }
   },
   "bot": {
     "title": "बॉट सेटिंग्स",

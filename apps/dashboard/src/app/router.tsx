@@ -38,12 +38,33 @@ const screens: RouteObject[] = [
     lazy: async () => ({ Component: (await import('@/features/admin/AdminPage')).default }),
   },
   {
+    path: 'leads',
+    lazy: async () => ({ Component: (await import('@/features/leads/LeadsPage')).default }),
+  },
+  {
+    path: 'fees',
+    lazy: async () => ({ Component: (await import('@/features/fees/FeesPage')).default }),
+  },
+  {
+    path: 'courses',
+    lazy: async () => ({ Component: (await import('@/features/courses/CoursesPage')).default }),
+  },
+  {
+    path: 'onboarding',
+    lazy: async () => ({
+      Component: (await import('@/features/onboarding/OnboardingPage')).default,
+    }),
+  },
+  {
     path: 'settings',
     lazy: async () => ({ Component: (await import('@/features/settings/SettingsPage')).default }),
   },
   // Screens later phases build; each replaces its placeholder.
   ...[...PRIMARY_NAV.slice(1), ...MORE_NAV.flat()]
-    .filter((item) => !['settings', 'chat', 'knowledge', 'bot'].includes(item.key))
+    .filter(
+      (item) =>
+        !['settings', 'chat', 'knowledge', 'bot', 'leads', 'fees', 'courses'].includes(item.key),
+    )
     .map((item) => ({
       path: item.to.slice(1),
       lazy: placeholder(item.key),

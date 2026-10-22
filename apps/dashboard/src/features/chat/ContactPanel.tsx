@@ -5,6 +5,7 @@ import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Skeleton } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
+import { LeadPanel } from './LeadPanel'
 import { Textarea } from '@/components/Textarea'
 import { usePreferences } from '@/lib/preferences'
 import { dayLabel } from '@/lib/time'
@@ -100,6 +101,8 @@ export function ContactPanel({ contactId }: { contactId: string }) {
       <StatusPill tone={optTone} className="self-start">
         {t(`contact.optIn.${contact.optInStatus}`)}
       </StatusPill>
+
+      <LeadPanel contactId={contact.id} waId={contact.waId} />
 
       <Input
         label={t('contact.name')}

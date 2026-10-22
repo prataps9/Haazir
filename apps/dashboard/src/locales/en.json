@@ -321,7 +321,16 @@
       "What is the fee for RS-CIT?",
       "Tally ka batch kab se hai?",
       "Where is the institute?"
-    ]
+    ],
+    "testActions": "On WhatsApp the bot would also",
+    "actionNames": {
+      "book_demo": "book the demo",
+      "upsert_lead": "update the lead",
+      "send_brochure": "send the brochure",
+      "send_location": "send the map pin",
+      "send_payment_link": "send a payment link",
+      "demo_answer": "note the reply on the demo"
+    }
   },
   "bot": {
     "title": "Bot settings",

@@ -20,6 +20,9 @@ export interface PlaygroundResult {
   kind: 'reply' | 'handoff' | 'optout' | 'silent'
   reply: string | null
   buttons: { id: string; title: string }[]
+  list: { buttonLabel: string; rows: { id: string; title: string; description?: string }[] } | null
+  /** What the bot would do on WhatsApp besides replying (book the demo, send the brochure…). */
+  actions: string[]
   handoff: { reason: string; summary: string } | null
   tools: string[]
   guardrailFlags: string[]
@@ -59,17 +62,25 @@ export function Playground({
   const nextId = useRef(1)
 
   const ask = useMutation({
-    mutationFn: ({ question, reset }: { question: string; reset: boolean }) =>
+    mutationFn: ({
+      question,
+      reset,
+      tap,
+    }: {
+      question: string
+      reset: boolean
+      tap?: { id: string; title: string }
+    }) =>
       endpoint === 'knowledge'
-        ? post<PlaygroundResult>('/api/v1/knowledge/test', { question, reset })
-        : post<PlaygroundResult>('/api/v1/bot/playground', { text: question, reset }),
+        ? post<PlaygroundResult>('/api/v1/knowledge/test', { question, reset, tap })
+        : post<PlaygroundResult>('/api/v1/bot/playground', { text: question, reset, tap }),
   })
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'nearest' })
   }, [turns])
 
-  const submit = (question: string, e?: FormEvent) => {
+  const submit = (question: string, e?: FormEvent, tap?: { id: string; title: string }) => {
     e?.preventDefault()
     const q = question.trim()
     if (!q || ask.isPending) return
@@ -79,7 +90,7 @@ export function Playground({
     const reset = fresh.current
     fresh.current = false
     ask.mutate(
-      { question: q, reset },
+      { question: q, reset, tap },
       {
         onSuccess: (result) =>
           setTurns((all) => all.map((x) => (x.id === id ? { ...x, result } : x))),
@@ -128,7 +139,7 @@ export function Playground({
               <UserIcon className="mt-1 size-4 shrink-0 text-ink-muted" weight="bold" aria-hidden />
               <span className="break-words whitespace-pre-wrap">{turn.question}</span>
             </p>
-            <Answer turn={turn} />
+            <Answer turn={turn} onTap={(b) => submit(b.title, undefined, b)} />
           </div>
         ))}
         <div ref={end} />
@@ -159,7 +170,8 @@ export function Playground({
   )
 }
 
-function Answer({ turn }: { turn: Turn }) {
+/** A bot answer; its buttons and list rows can be tapped, like on the phone. */
+function Answer({ turn, onTap }: { turn: Turn; onTap(b: { id: string; title: string }): void }) {
   const { t } = useTranslation()
   if (turn.error) return <p className="text-body text-danger-600">{turn.error}</p>
   const r = turn.result
@@ -183,16 +195,45 @@ function Answer({ turn }: { turn: Turn }) {
           {r.buttons.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5" aria-label={t('chat.buttonsSent')}>
               {r.buttons.map((b) => (
-                <span
+                <button
                   key={b.id}
-                  className="rounded-full border border-rule bg-surface px-3 py-1 text-small text-ink-muted"
+                  type="button"
+                  onClick={() => onTap(b)}
+                  className="min-h-9 rounded-full border border-rule bg-surface px-3 text-small text-pottery-600 transition-colors duration-150 hover:border-pottery-600"
                 >
                   {b.title}
-                </span>
+                </button>
               ))}
             </div>
           )}
+          {r.list && (
+            <ul
+              className="mt-2 flex flex-col divide-y divide-rule rounded-control border border-rule bg-surface"
+              aria-label={r.list.buttonLabel}
+            >
+              {r.list.rows.map((row) => (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => onTap(row)}
+                    className="flex min-h-11 w-full flex-col justify-center px-3 py-1.5 text-left transition-colors duration-150 hover:bg-pottery-50"
+                  >
+                    <span className="text-small font-semibold text-ink">{row.title}</span>
+                    {row.description && (
+                      <span className="text-small text-ink-muted">{row.description}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+      )}
+      {r.actions?.length > 0 && (
+        <p className="flex flex-wrap items-center gap-1.5 text-small text-ink-muted">
+          {t('knowledge.testActions')}:{' '}
+          {r.actions.map((a) => t(`knowledge.actionNames.${a}`, { defaultValue: a })).join(', ')}
+        </p>
       )}
       {r.handoff && (
         <div className="flex flex-col gap-1">

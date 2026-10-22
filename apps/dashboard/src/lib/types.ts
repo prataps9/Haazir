@@ -1,3 +1,4 @@
+import type { LeadStage } from '@haazir/shared'
 /** Shapes the API returns (apps/api, packages/messaging/src/views.ts). */
 
 export type Role = 'owner' | 'admin' | 'agent'
@@ -21,6 +22,8 @@ export interface ConversationSummary {
   handoffSummary: string | null
   handoffAt: string | null
   assignedUserId: string | null
+  /** Where this person's enquiry stands, if they have one. */
+  leadStage: LeadStage | null
   contact: {
     id: string
     name: string | null

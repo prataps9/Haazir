@@ -1,7 +1,7 @@
 import { ChatsCircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
@@ -16,7 +16,13 @@ import { useConversations, type Filter } from './queries'
 /** Spec §16.4 list: search, filter chips, rows with arch avatar, preview, time, mode pill, unread. */
 export function ConversationList({ orgId, activeId }: { orgId: string; activeId?: string }) {
   const { t } = useTranslation()
-  const [filter, setFilter] = useState<Filter>('all')
+  // Home's "chats waiting for you" links here with ?filter=human.
+  const [params] = useSearchParams()
+  const [filter, setFilter] = useState<Filter>(
+    (['human', 'unread', 'demo_booked', 'admitted'] as const).find(
+      (f) => f === params.get('filter'),
+    ) ?? 'all',
+  )
   const [input, setInput] = useState('')
   const [q, setQ] = useState('')
   useEffect(() => {
@@ -43,6 +49,8 @@ export function ConversationList({ orgId, activeId }: { orgId: string; activeId?
     { value: 'all', label: t('chat.all') },
     { value: 'human', label: t('chat.needsMe') },
     { value: 'unread', label: t('chat.unread') },
+    { value: 'demo_booked', label: t('stages.demo_booked') },
+    { value: 'admitted', label: t('stages.admitted') },
   ]
 
   return (

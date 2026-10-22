@@ -23,6 +23,7 @@ import { ChatBubble, DaySeparator } from '@/components/ChatBubble'
 import { Skeleton } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { WindowTimer } from '@/components/WindowTimer'
+import { STAGE_TONE } from '@/features/leads/leadUi'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { usePreferences } from '@/lib/preferences'
@@ -90,6 +91,11 @@ function Header({
             : ''}
         </p>
       </div>
+      {c.leadStage && (
+        <StatusPill tone={STAGE_TONE[c.leadStage]} className="max-sm:hidden">
+          {t(`stages.${c.leadStage}`)}
+        </StatusPill>
+      )}
       <IconButton label={t('chat.contactDetails')} onClick={onShowContact} className="xl:hidden">
         <IdentificationCardIcon />
       </IconButton>

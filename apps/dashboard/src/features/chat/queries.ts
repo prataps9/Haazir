@@ -9,7 +9,7 @@ import { api, patch, post } from '@/lib/api'
 import { upsertConversation, upsertMessage } from '@/lib/socket'
 import type { Contact, ConversationSummary, Message } from '@/lib/types'
 
-export type Filter = 'all' | 'human' | 'unread'
+export type Filter = 'all' | 'human' | 'unread' | 'demo_booked' | 'admitted'
 
 export function useConversations(orgId: string | undefined, filter: Filter, q: string) {
   return useInfiniteQuery({
@@ -20,6 +20,7 @@ export function useConversations(orgId: string | undefined, filter: Filter, q: s
       const params = new URLSearchParams()
       if (filter === 'human') params.set('mode', 'human')
       if (filter === 'unread') params.set('unread', 'true')
+      if (filter === 'demo_booked' || filter === 'admitted') params.set('stage', filter)
       if (q) params.set('q', q)
       if (pageParam) params.set('cursor', pageParam)
       return api<{ conversations: ConversationSummary[]; nextCursor: string | null }>(

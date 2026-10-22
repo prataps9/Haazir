@@ -1,6 +1,6 @@
 import { CalendarPlusIcon, ChatsCircleIcon, GraduationCapIcon } from '@phosphor-icons/react'
 import { LEAD_STAGES, LOST_REASONS, type LeadStage } from '@haazir/shared'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Avatar } from '@/components/Avatar'
@@ -242,16 +242,15 @@ function BookDemoForm({ lead, onDone }: { lead: LeadDetail; onDone(): void }) {
   const courses = useCourses()
   const book = useCrmMutation(crm.bookDemo)
   const [courseId, setCourseId] = useState(lead.courseId ?? '')
-  const [batchId, setBatchId] = useState('')
+  const [picked, setBatchId] = useState('')
   const [date, setDate] = useState(istToday())
   const [studentName, setStudentName] = useState(lead.studentName ?? displayName(lead.contact))
   const options =
     courses.data
       ?.find((c) => c.id === courseId)
       ?.batches.filter((b) => b.active && b.demoAllowed) ?? []
-  useEffect(() => {
-    if (!options.some((b) => b.id === batchId)) setBatchId(options[0]?.id ?? '')
-  }, [options, batchId])
+  // The picked batch while it belongs to the chosen course, else that course's first.
+  const batchId = options.some((b) => b.id === picked) ? picked : (options[0]?.id ?? '')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
