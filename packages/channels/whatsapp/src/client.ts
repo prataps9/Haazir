@@ -52,6 +52,27 @@ export interface MediaInfo {
   sha256?: string
 }
 
+/** A template as Meta reports it (`GET /{waba}/message_templates`). */
+export interface MetaTemplate {
+  id: string
+  name: string
+  language: string
+  /** APPROVED, PENDING, REJECTED, PAUSED, DISABLED, IN_APPEAL… */
+  status: string
+  /** MARKETING, UTILITY, AUTHENTICATION */
+  category: string
+  rejectedReason?: string
+  /** Meta's component list (types in upper case), as created. */
+  components?: Record<string, unknown>[]
+}
+
+export interface NewTemplate {
+  name: string
+  language: string
+  category: 'utility' | 'marketing' | 'authentication'
+  components: Record<string, unknown>[]
+}
+
 export class GraphClient {
   constructor(private readonly options: GraphClientOptions) {}
 
@@ -159,6 +180,82 @@ export class GraphClient {
         ...(options.typing ? { typing_indicator: { type: 'text' } } : {}),
       }),
     })
+  }
+
+  /**
+   * Submits a template for Meta's review. Returns Meta's id and first status
+   * (usually PENDING; utility templates are sometimes APPROVED at once).
+   */
+  async createTemplate(
+    wabaId: string,
+    t: NewTemplate,
+  ): Promise<{ id: string; status: string; category?: string }> {
+    const res = await this.request<{ id?: string; status?: string; category?: string }>(
+      `${wabaId}/message_templates`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ ...t, category: t.category.toUpperCase() }),
+      },
+    )
+    if (!res.id) throw new GraphError(502, undefined, 'Graph API created a template but sent no id')
+    return { id: res.id, status: res.status ?? 'PENDING', category: res.category }
+  }
+
+  /** Edits a rejected (or approved) template in place; it goes back to review. */
+  async editTemplate(
+    metaTemplateId: string,
+    t: Pick<NewTemplate, 'category' | 'components'>,
+  ): Promise<void> {
+    await this.request(metaTemplateId, {
+      method: 'POST',
+      body: JSON.stringify({ category: t.category.toUpperCase(), components: t.components }),
+    })
+  }
+
+  /** Every template on the WhatsApp Business Account, following Meta's pages. */
+  async listTemplates(wabaId: string): Promise<MetaTemplate[]> {
+    const out: MetaTemplate[] = []
+    let after: string | undefined
+    for (let page = 0; page < 20; page++) {
+      const res = await this.request<{
+        data?: {
+          id: string
+          name: string
+          language: string
+          status: string
+          category: string
+          rejected_reason?: string
+          components?: Record<string, unknown>[]
+        }[]
+        paging?: { cursors?: { after?: string }; next?: string }
+      }>(
+        `${wabaId}/message_templates?fields=id,name,language,status,category,rejected_reason,components&limit=100${
+          after ? `&after=${encodeURIComponent(after)}` : ''
+        }`,
+      )
+      for (const t of res.data ?? [])
+        out.push({
+          id: t.id,
+          name: t.name,
+          language: t.language,
+          status: t.status,
+          category: t.category,
+          rejectedReason:
+            t.rejected_reason && t.rejected_reason !== 'NONE' ? t.rejected_reason : undefined,
+          components: t.components,
+        })
+      after = res.paging?.next ? res.paging.cursors?.after : undefined
+      if (!after) break
+    }
+    return out
+  }
+
+  /** Deletes one language of a template at Meta (the name can't be reused for 30 days). */
+  async deleteTemplate(wabaId: string, name: string, metaTemplateId: string): Promise<void> {
+    await this.request(
+      `${wabaId}/message_templates?name=${encodeURIComponent(name)}&hsm_id=${encodeURIComponent(metaTemplateId)}`,
+      { method: 'DELETE' },
+    )
   }
 
   /** The number's public details, reading only: proves the token works without messaging anyone. */

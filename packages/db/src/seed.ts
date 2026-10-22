@@ -2,8 +2,10 @@ import { pathToFileURL } from 'node:url'
 import { hashPassword } from 'better-auth/crypto'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import {
+  DEFAULT_META_RATES_IN,
   DEFAULT_TEMPLATES,
   feeStatusOn,
+  PRICING_CATEGORIES,
   scheduleInstallments,
   templateKey,
   type CopyLanguage,
@@ -25,6 +27,7 @@ import {
   leads,
   memberships,
   messages,
+  metaRates,
   organizations,
   plans,
   students,
@@ -36,6 +39,7 @@ import {
   DEMO_BATCHES,
   DEMO_BOT_CONFIG,
   DEMO_CONTACTS,
+  DEMO_OPTED_OUT,
   DEMO_COURSES,
   DEMO_FAQS,
   DEMO_LEADS,
@@ -121,6 +125,7 @@ export async function seed(
   await seedCoaching(db, second.id)
   await seedTemplates(db, org.id)
   await seedTemplates(db, second.id)
+  await seedMetaRates(db)
   if (options.crm) await seedCrm(db, org.id)
 
   if (options.passwords) {
@@ -204,6 +209,22 @@ export async function seedCoaching(db: AnyDatabase, orgId: string, today = new D
  * The automation templates (spec §13) as drafts, every language variant.
  * Phase 5 submits them to Meta; existing rows are left alone.
  */
+/** Meta's India rate card (spec §8 `meta_rates`), as of the date below. */
+export const META_RATES_FROM = '2026-07-01'
+export async function seedMetaRates(db: AnyDatabase) {
+  await db
+    .insert(metaRates)
+    .values(
+      PRICING_CATEGORIES.map((category) => ({
+        country: 'IN',
+        category,
+        priceCentipaise: DEFAULT_META_RATES_IN[category],
+        effectiveFrom: META_RATES_FROM,
+      })),
+    )
+    .onConflictDoNothing()
+}
+
 export async function seedTemplates(db: AnyDatabase, orgId: string) {
   const rows = DEFAULT_TEMPLATES.flatMap((t) =>
     (['hi', 'hinglish', 'en'] as CopyLanguage[]).map((lang) => {
@@ -225,7 +246,17 @@ export async function seedTemplates(db: AnyDatabase, orgId: string) {
       }
     }),
   )
-  await db.insert(templates).values(rows).onConflictDoNothing()
+  // New orgs get every template; existing drafts pick up text changes (they
+  // were never submitted, so nothing at Meta refers to them yet).
+  for (const row of rows)
+    await db
+      .insert(templates)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [templates.orgId, templates.name, templates.language],
+        set: { components: row.components, variables: row.variables, category: row.category },
+        setWhere: sql`${templates.status} = 'draft'`,
+      })
 }
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000
@@ -253,8 +284,13 @@ export async function seedCrm(db: AnyDatabase, orgId: string, now = new Date()) 
       DEMO_CONTACTS.map((c, i) => ({
         ...c,
         orgId,
-        optInStatus: 'opted_in' as const,
-        optInSource: 'whatsapp_inbound',
+        ...(DEMO_OPTED_OUT.has(i)
+          ? { optInStatus: 'opted_out' as const, optedOutAt: ago(2) }
+          : {
+              optInStatus: 'opted_in' as const,
+              optInSource: 'whatsapp_inbound',
+              optInAt: ago(30),
+            }),
         lastInboundAt: ago(i % 7, i * 13),
       })),
     )

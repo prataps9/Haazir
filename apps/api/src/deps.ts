@@ -2,6 +2,7 @@ import type { Models } from '@haazir/ai-core'
 import type { RazorpayFactory } from '@haazir/coaching'
 import type { AnyDatabase } from '@haazir/db'
 import type {
+  CampaignJob,
   IngestJob,
   JobQueue,
   OrgEvents,
@@ -36,6 +37,8 @@ export interface AppDeps extends HealthDeps {
     ingest: JobQueue<IngestJob>
     /** Demo reminders and follow-ups, scheduled when staff book a demo. */
     reminder: JobQueue<ReminderJob>
+    /** Campaign sends (spec §16.8), started when one is scheduled. */
+    campaign: JobQueue<CampaignJob>
   }
   storage: Storage
   /** Null when no LLM is configured (the playground then says so). */

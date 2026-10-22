@@ -61,13 +61,31 @@ export interface StatusUpdate {
   timestamp: Date
   recipient: string
   pricingCategory?: string
+  /** Meta's `pricing.billable`: whether this message is charged. */
+  billable?: boolean
   errors: { code: number; title: string; details?: string }[]
+}
+
+/**
+ * Meta reviewed a template (`message_template_status_update`) or moved it to
+ * another category (`template_category_update`). Keyed by the WABA (entry id).
+ */
+export interface TemplateUpdate {
+  wabaId: string
+  metaTemplateId: string
+  name?: string
+  language?: string
+  /** APPROVED, REJECTED, PENDING, PAUSED, DISABLED, IN_APPEAL… (upper case, as Meta sends). */
+  event?: string
+  reason?: string
+  newCategory?: string
 }
 
 export interface ParsedWebhook {
   messages: InboundMessage[]
   statuses: StatusUpdate[]
-  /** Changes we don't handle yet (e.g. template status updates, Phase 5). */
+  templates: TemplateUpdate[]
+  /** Changes we don't handle (account updates, quality changes…). */
   ignoredFields: string[]
   problems: string[]
 }
@@ -122,7 +140,9 @@ const statusSchema = z.object({
   status: z.enum(['sent', 'delivered', 'read', 'failed']),
   timestamp: unixSeconds,
   recipient_id: z.string(),
-  pricing: z.object({ category: z.string().optional() }).optional(),
+  pricing: z
+    .object({ category: z.string().optional(), billable: z.boolean().optional() })
+    .optional(),
   errors: z
     .array(
       z.object({
@@ -149,10 +169,28 @@ const valueSchema = z.object({
   statuses: z.array(z.unknown()).optional(),
 })
 
+const templateStatusSchema = z.object({
+  event: z.string().optional(),
+  message_template_id: z.union([z.string(), z.number()]).transform(String),
+  message_template_name: z.string().optional(),
+  message_template_language: z.string().optional(),
+  reason: z.string().nullable().optional(),
+  other_info: z.object({ description: z.string().optional() }).optional(),
+})
+
+const templateCategorySchema = z.object({
+  message_template_id: z.union([z.string(), z.number()]).transform(String),
+  message_template_name: z.string().optional(),
+  message_template_language: z.string().optional(),
+  new_category: z.string().optional(),
+  correct_category: z.string().optional(),
+})
+
 const envelopeSchema = z.object({
   object: z.literal('whatsapp_business_account'),
   entry: z.array(
     z.object({
+      id: z.string().optional(),
       changes: z.array(z.object({ field: z.string(), value: z.unknown() })),
     }),
   ),
@@ -161,7 +199,13 @@ const envelopeSchema = z.object({
 const MEDIA_TYPES = ['image', 'audio', 'video', 'document', 'sticker'] as const
 
 export function parseWebhook(body: unknown): ParsedWebhook {
-  const result: ParsedWebhook = { messages: [], statuses: [], ignoredFields: [], problems: [] }
+  const result: ParsedWebhook = {
+    messages: [],
+    statuses: [],
+    templates: [],
+    ignoredFields: [],
+    problems: [],
+  }
 
   const envelope = envelopeSchema.safeParse(body)
   if (!envelope.success) {
@@ -171,6 +215,38 @@ export function parseWebhook(body: unknown): ParsedWebhook {
 
   for (const entry of envelope.data.entry) {
     for (const change of entry.changes) {
+      if (change.field === 'message_template_status_update') {
+        const t = templateStatusSchema.safeParse(change.value)
+        if (!t.success || !entry.id) {
+          result.problems.push('Malformed template status update')
+          continue
+        }
+        const reason = t.data.reason && t.data.reason !== 'NONE' ? t.data.reason : undefined
+        result.templates.push({
+          wabaId: entry.id,
+          metaTemplateId: t.data.message_template_id,
+          name: t.data.message_template_name,
+          language: t.data.message_template_language,
+          event: t.data.event?.toUpperCase(),
+          reason: [reason, t.data.other_info?.description].filter(Boolean).join(': ') || undefined,
+        })
+        continue
+      }
+      if (change.field === 'template_category_update') {
+        const t = templateCategorySchema.safeParse(change.value)
+        if (!t.success || !entry.id) {
+          result.problems.push('Malformed template category update')
+          continue
+        }
+        result.templates.push({
+          wabaId: entry.id,
+          metaTemplateId: t.data.message_template_id,
+          name: t.data.message_template_name,
+          language: t.data.message_template_language,
+          newCategory: (t.data.correct_category ?? t.data.new_category)?.toLowerCase(),
+        })
+        continue
+      }
       if (change.field !== 'messages') {
         result.ignoredFields.push(change.field)
         continue
@@ -212,6 +288,7 @@ export function parseWebhook(body: unknown): ParsedWebhook {
           timestamp: s.timestamp,
           recipient: s.recipient_id,
           pricingCategory: s.pricing?.category,
+          billable: s.pricing?.billable,
           errors: (s.errors ?? []).map((e) => ({
             code: e.code,
             title: e.title,

@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, lt, sql } from 'drizzle-orm'
 import {
   decideReply,
   markBotReplied,
@@ -13,12 +13,16 @@ import {
   announceMessage,
   notifyOrg,
   queueOutbound,
+  TEAM_OPT_IN_SOURCE,
   type AiReplyJob,
 } from '@haazir/messaging'
 import { ensureLead } from '@haazir/coaching'
 import { AppError } from '@haazir/shared'
 import { applyActions } from '../agent'
 import type { Deps } from '../deps'
+
+/** A reply within a week of a campaign message counts as the campaign's enquiry. */
+const CAMPAIGN_CREDIT_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
  * The `ai-reply` queue: runs the brain (spec §11) on one inbound message and
@@ -52,14 +56,37 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
   if (already) return { replied: false }
 
   const now = deps.now()
-  // Every enquiry is a lead from its first message (spec §16.5), whoever answers it.
-  await ensureLead(deps.db, {
-    orgId: job.orgId,
-    contactId: row.conversation.contactId,
-    actor: 'bot',
-  }).then((lead) => {
+  // Every enquiry is a lead from its first message (spec §16.5), whoever answers
+  // it; one that answers a campaign is credited to it. The team's own numbers
+  // (the owner's daily summary) are not enquiries.
+  const [contact] = await deps.db
+    .select({ optInSource: contacts.optInSource })
+    .from(contacts)
+    .where(eq(contacts.id, row.conversation.contactId))
+  if (contact?.optInSource !== TEAM_OPT_IN_SOURCE) {
+    const [lastOut] = await deps.db
+      .select({ sentBy: messages.sentBy, createdAt: messages.createdAt })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, row.conversation.id),
+          eq(messages.direction, 'out'),
+          lt(messages.createdAt, row.message.createdAt),
+        ),
+      )
+      .orderBy(desc(messages.createdAt))
+      .limit(1)
+    const fromCampaign =
+      lastOut?.sentBy === 'campaign' &&
+      row.message.createdAt.getTime() - lastOut.createdAt.getTime() < CAMPAIGN_CREDIT_MS
+    const lead = await ensureLead(deps.db, {
+      orgId: job.orgId,
+      contactId: row.conversation.contactId,
+      source: fromCampaign ? 'campaign' : undefined,
+      actor: 'bot',
+    })
     if (lead?.isNew) deps.events.emit(job.orgId, 'lead:updated', { leadId: lead.id })
-  })
+  }
 
   const botHasIt =
     row.conversation.mode === 'bot' ||

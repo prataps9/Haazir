@@ -1,17 +1,19 @@
 import { Router } from 'express'
-import { count, desc, eq, max, sql } from 'drizzle-orm'
+import { asc, count, desc, eq, max, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   botConfigs,
   conversations,
   memberships,
+  metaRates,
   organizations,
   plans,
   whatsappAccounts,
 } from '@haazir/db'
 import { seedTemplates } from '@haazir/db/seed'
 import { encryptSecret } from '@haazir/shared/crypto'
-import { AppError } from '@haazir/shared'
+import { ratesOn } from '@haazir/messaging'
+import { AppError, PRICING_CATEGORIES } from '@haazir/shared'
 import { GraphError } from '@haazir/whatsapp'
 import { createInvite } from '../auth/invites'
 import type { AppDeps } from '../deps'
@@ -231,6 +233,55 @@ export function adminRouter(
         .where(eq(whatsappAccounts.id, accountId))
       res.status(200).json({ ok: false, error: message })
     }
+  })
+
+  /** Meta's rate card (spec §8 `meta_rates`): the rates in force today, and every row. */
+  router.get('/admin/meta-rates', async (_req, res) => {
+    const today = new Date(deps.now().getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10)
+    const rows = await deps.db
+      .select()
+      .from(metaRates)
+      .orderBy(desc(metaRates.effectiveFrom), asc(metaRates.category))
+    res.json({ current: await ratesOn(deps.db, today), rates: rows })
+  })
+
+  /** A new rate from a date (Meta announces changes ahead). Old rows stay: past campaigns keep their cost. */
+  router.post('/admin/meta-rates', async (req, res) => {
+    const body = z
+      .object({
+        country: z.string().length(2).toUpperCase().default('IN'),
+        category: z.enum(PRICING_CATEGORIES),
+        // Rupees with up to 4 decimals, as Meta publishes them: "0.8631".
+        priceRupees: z
+          .string()
+          .trim()
+          .regex(/^\d{1,3}(\.\d{1,4})?$/, 'Rupees, e.g. 0.8631'),
+        effectiveFrom: z.iso.date(),
+      })
+      .parse(req.body)
+    const [whole, fraction = ''] = body.priceRupees.split('.')
+    const priceCentipaise = Number(whole) * 10_000 + Number(fraction.padEnd(4, '0'))
+    const [row] = await deps.db
+      .insert(metaRates)
+      .values({
+        country: body.country,
+        category: body.category,
+        priceCentipaise,
+        effectiveFrom: body.effectiveFrom,
+      })
+      .onConflictDoUpdate({
+        target: [metaRates.country, metaRates.category, metaRates.effectiveFrom],
+        set: { priceCentipaise },
+      })
+      .returning()
+    await audit(deps.db, req, {
+      orgId: null,
+      action: 'meta_rate.set',
+      entity: 'meta_rate',
+      entityId: row!.id,
+      diff: { ...body, priceCentipaise },
+    })
+    res.status(201).json(row)
   })
 
   return router

@@ -65,6 +65,47 @@ export const TEMPLATE_PURPOSES = [
   'custom',
 ] as const
 export type TemplatePurpose = (typeof TEMPLATE_PURPOSES)[number]
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number]
+export type TemplateStatus = (typeof TEMPLATE_STATUSES)[number]
+
+// Campaigns (spec §16.8).
+export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'done', 'cancelled'] as const
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number]
+
+/**
+ * One row per person a campaign reaches. `queued` means the message row is
+ * written and handed to the outbound queue; delivery progress is the message's
+ * own status. `skipped`: they opted out (or lost their number) before their turn.
+ */
+export const RECIPIENT_STATUSES = ['pending', 'queued', 'skipped', 'failed'] as const
+export type RecipientStatus = (typeof RECIPIENT_STATUSES)[number]
+
+/** What a campaign's {{n}} can be filled with, per person or fixed. */
+export const CAMPAIGN_VARIABLE_SOURCES = ['contact_name', 'course', 'batch', 'custom'] as const
+export type CampaignVariableSource = (typeof CAMPAIGN_VARIABLE_SOURCES)[number]
+
+/**
+ * Campaign pacing (spec §16.8, "throttled send"): a batch at a time, one
+ * message every SEND_INTERVAL_MS, so a big list doesn't arrive as one burst
+ * (people report bursts as spam, and Meta lowers the number's quality rating).
+ */
+export const CAMPAIGN_BATCH_SIZE = 25
+export const CAMPAIGN_SEND_INTERVAL_MS = 500
+
+/** Who a campaign goes to. Opted-in contacts only, always; these narrow it further. */
+export interface CampaignAudience {
+  /** Any of these tags. */
+  tags?: string[]
+  stages?: LeadStage[]
+  courseIds?: string[]
+  batchIds?: string[]
+}
+
+export interface CampaignVariable {
+  source: CampaignVariableSource
+  /** The fixed text for `custom`, and the fallback when a person has no name/course. */
+  text?: string
+}
 
 /** Shape of `plans.limits`. The values live in the database, editable by super admin. */
 export interface PlanLimits {

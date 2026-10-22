@@ -33,4 +33,7 @@ export const JOB_OPTIONS = {
   media: { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, ...keep },
   ingest: { attempts: 3, backoff: { type: 'exponential', delay: 10000 }, ...keep },
   reminder: { attempts: 3, backoff: { type: 'exponential', delay: 30000 }, ...keep },
+  campaign: { attempts: 5, backoff: { type: 'exponential', delay: 5000 }, ...keep },
+  summary: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, ...keep },
+  templateSync: { attempts: 1, ...keep },
 } as const

@@ -9,6 +9,7 @@ import { errorHandler, notFound } from './middleware/errorHandler'
 import { adminRouter } from './routes/admin'
 import { analyticsRouter } from './routes/analytics'
 import { botRouter } from './routes/bot'
+import { campaignsRouter } from './routes/campaigns'
 import { contactsRouter } from './routes/contacts'
 import { conversationsRouter } from './routes/conversations'
 import { coursesRouter } from './routes/courses'
@@ -23,6 +24,7 @@ import { meRouter, membersRouter } from './routes/me'
 import { orgRouter } from './routes/org'
 import { pushRouter } from './routes/push'
 import { studentsRouter } from './routes/students'
+import { templatesRouter } from './routes/templates'
 import { razorpayWebhookRouter } from './webhooks/razorpay'
 import { whatsappWebhookRouter } from './webhooks/whatsapp'
 
@@ -86,6 +88,8 @@ export function createApp(deps: AppDeps) {
   api.use(studentsRouter(deps))
   api.use(feesRouter(deps))
   api.use(analyticsRouter(deps))
+  api.use(templatesRouter(deps))
+  api.use(campaignsRouter(deps))
 
   app.use('/api/v1', api)
 

@@ -3,12 +3,14 @@ import type { RazorpayFactory } from '@haazir/coaching'
 import type { AnyDatabase } from '@haazir/db'
 import type {
   AiReplyJob,
+  CampaignJob,
   JobQueue,
   MediaJob,
   OrgEvents,
   OutboundJob,
   PushSender,
   ReminderJob,
+  SummaryJob,
   WhatsappAccount,
 } from '@haazir/messaging'
 import type { Storage } from '@haazir/storage'
@@ -45,6 +47,8 @@ export interface Deps {
     media: JobQueue<MediaJob>
     outbound: JobQueue<OutboundJob>
     reminder: JobQueue<ReminderJob>
+    campaign: JobQueue<CampaignJob>
+    summary: JobQueue<SummaryJob>
   }
   storage: Storage
   graph(account: WhatsappAccount): GraphClient

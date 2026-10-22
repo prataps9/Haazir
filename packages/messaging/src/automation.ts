@@ -12,6 +12,7 @@ import {
   defaultTemplate,
   fillTemplate,
   templateKey,
+  templateParam,
   type CopyLanguage,
   type TemplatePurpose,
 } from '@haazir/shared'
@@ -176,7 +177,12 @@ async function templateContent(
     language: chosen.language,
     components: [
       ...(values.length
-        ? [{ type: 'body', parameters: values.map((text) => ({ type: 'text', text })) }]
+        ? [
+            {
+              type: 'body',
+              parameters: values.map((text) => ({ type: 'text', text: templateParam(text) })),
+            },
+          ]
         : []),
       // Quick-reply payloads carry our ids back, e.g. "demo_yes:<booking id>".
       ...(buttons ?? []).map((_, index) => ({

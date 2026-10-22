@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
-import { announceMessage, type WhatsappAccount } from '@haazir/messaging'
+import { announceMessage, applyTemplateUpdate, type WhatsappAccount } from '@haazir/messaging'
 import {
   extendWindow,
   parseWebhook,
@@ -117,6 +117,13 @@ export async function processInbound(
     }
     // Only now is the message fully handled; the fast path may skip it next time.
     await deps.kv.set(`haazir:msg:${message.waMessageId}`, '1', DEDUPE_TTL_SECONDS)
+  }
+
+  // Meta reviewed a template: the Templates screen and campaign builder update live.
+  for (const update of parsed.templates) {
+    const orgIds = await applyTemplateUpdate(deps.db, update)
+    for (const orgId of orgIds)
+      deps.events.emit(orgId, 'template:updated', { metaTemplateId: update.metaTemplateId })
   }
 
   const unmatched: string[] = []
@@ -304,6 +311,7 @@ async function applyStatus(
     .set({
       ...(forward ? { status: s.status } : {}),
       ...(s.pricingCategory ? { pricingCategory: s.pricingCategory } : {}),
+      ...(s.billable === undefined ? {} : { billable: s.billable }),
       ...(forward && error
         ? { errorCode: String(error.code), errorTitle: error.details ?? error.title }
         : {}),

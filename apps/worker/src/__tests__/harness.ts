@@ -12,6 +12,8 @@ import {
   type MediaJob,
   type OutboundJob,
   type ReminderJob,
+  type CampaignJob,
+  type SummaryJob,
 } from '@haazir/messaging'
 import { encryptSecret } from '@haazir/shared/crypto'
 import { LocalStorage } from '@haazir/storage'
@@ -185,6 +187,8 @@ export async function createHarness() {
     media: recorder<MediaJob>(),
     outbound: recorder<OutboundJob>(),
     reminder: recorder<ReminderJob>(),
+    campaign: recorder<CampaignJob>(),
+    summary: recorder<SummaryJob>(),
   }
   const storageDir = await mkdtemp(join(tmpdir(), 'haazir-worker-'))
   const silent = () => {}

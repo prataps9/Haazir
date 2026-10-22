@@ -400,7 +400,12 @@ export const DEMO_CONTACTS = NAMES.map((name, i) => ({
   name,
   profileName: name.split(' ')[0]!,
   language: i % 5 === 0 ? 'hi' : 'hinglish',
+  // A few tags so campaign audiences have something to pick from.
+  tags: i % 3 === 0 ? ['parent'] : i % 4 === 1 ? ['college'] : [],
 }))
+
+/** Contacts 28 and 29 said STOP: no campaign or reminder may reach them. */
+export const DEMO_OPTED_OUT = new Set([28, 29])
 
 /** Stage, course and age (days ago) of the 15 open enquiries. Contacts 0–14. */
 export const DEMO_LEADS: {

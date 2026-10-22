@@ -50,6 +50,13 @@
       "when": 1792614901507,
       "tag": "0006_coaching_crm",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792648242032,
+      "tag": "0007_campaigns",
+      "breakpoints": true
     }
   ]
 }

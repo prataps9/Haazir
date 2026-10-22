@@ -9,11 +9,14 @@ import {
   graphClientFor,
   type OrgEvents,
   type AiReplyJob,
+  type CampaignJob,
   type InboundJob,
   type IngestJob,
   type MediaJob,
   type OutboundJob,
   type ReminderJob,
+  type SummaryJob,
+  type TemplateSyncJob,
 } from '@haazir/messaging'
 import { JOB_OPTIONS, QUEUES } from '@haazir/shared'
 import { createStorage } from '@haazir/storage'
@@ -22,11 +25,14 @@ import { env } from './env'
 import { HEARTBEAT_EVERY_MS, heartbeatProcessor } from './heartbeat'
 import { createLogger } from './logger'
 import { processAiReply } from './processors/aiReply'
+import { processCampaign } from './processors/campaign'
 import { processInbound } from './processors/inbound'
 import { processIngest } from './processors/ingest'
 import { processMedia } from './processors/media'
 import { processOutbound } from './processors/outbound'
 import { processReminder } from './processors/reminder'
+import { processSummary } from './processors/summary'
+import { processTemplateSync } from './processors/templateSync'
 import { redisKeyValue, redisLocks } from './redis'
 
 const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' })
@@ -45,6 +51,9 @@ const aiReplyQueue = queue<AiReplyJob>(QUEUES.aiReply, JOB_OPTIONS.aiReply)
 const mediaQueue = queue<MediaJob>(QUEUES.media, JOB_OPTIONS.media)
 const outboundQueue = queue<OutboundJob>(QUEUES.outbound, JOB_OPTIONS.outbound)
 const reminderQueue = queue<ReminderJob>(QUEUES.reminder, JOB_OPTIONS.reminder)
+const campaignQueue = queue<CampaignJob>(QUEUES.campaign, JOB_OPTIONS.campaign)
+const summaryQueue = queue<SummaryJob>(QUEUES.summary, JOB_OPTIONS.summary)
+const templateSyncQueue = queue<TemplateSyncJob>(QUEUES.templateSync, JOB_OPTIONS.templateSync)
 
 // Without a key the worker still runs: the bot hands every chat to staff
 // rather than leaving people unanswered.
@@ -94,6 +103,8 @@ const deps: Deps = {
     media: { add: (name, data, opts) => mediaQueue.add(name, data, opts) },
     outbound: { add: (name, data, opts) => outboundQueue.add(name, data, opts) },
     reminder: { add: (name, data, opts) => reminderQueue.add(name, data, opts) },
+    campaign: { add: (name, data, opts) => campaignQueue.add(name, data, opts) },
+    summary: { add: (name, data, opts) => summaryQueue.add(name, data, opts) },
   },
   encryptionKey: env.ENCRYPTION_KEY,
   razorpay: (credentials) => createRazorpay({ ...credentials, baseUrl: env.RAZORPAY_BASE_URL }),
@@ -125,6 +136,18 @@ async function scheduleHeartbeat() {
       data: { kind: 'fee_sweep' },
       opts: { removeOnComplete: 30, removeOnFail: 100 },
     },
+  )
+  // The owner's "Aaj ka hisaab" on WhatsApp at 8 PM India time (spec §13).
+  await summaryQueue.upsertJobScheduler(
+    'daily-summary',
+    { pattern: '0 20 * * *', tz: 'Asia/Kolkata' },
+    { name: 'summary', data: {}, opts: { removeOnComplete: 30, removeOnFail: 100 } },
+  )
+  // Template statuses from Meta, in case a webhook was missed (spec §10).
+  await templateSyncQueue.upsertJobScheduler(
+    'template-sync',
+    { every: 15 * 60 * 1000 },
+    { name: 'sync', data: {}, opts: { removeOnComplete: 10, removeOnFail: 50 } },
   )
 }
 await scheduleHeartbeat()
@@ -167,6 +190,20 @@ const workers = [
     connection,
     concurrency: 5,
   }),
+  // One batch at a time per campaign is enforced by the job chain; a few
+  // campaigns may run side by side.
+  new Worker<CampaignJob>(QUEUES.campaign, (job) => processCampaign(deps, job.data), {
+    connection,
+    concurrency: 3,
+  }),
+  new Worker<SummaryJob>(QUEUES.summary, (job) => processSummary(deps, job.data), {
+    connection,
+    concurrency: 5,
+  }),
+  new Worker<TemplateSyncJob>(QUEUES.templateSync, (job) => processTemplateSync(deps, job.data), {
+    connection,
+    concurrency: 1,
+  }),
 ]
 
 for (const worker of workers) {
@@ -194,7 +231,16 @@ async function shutdown(signal: string) {
   force.unref()
   await Promise.allSettled(workers.map((w) => w.close()))
   await Promise.allSettled(
-    [systemQueue, aiReplyQueue, mediaQueue, outboundQueue, reminderQueue].map((q) => q.close()),
+    [
+      systemQueue,
+      aiReplyQueue,
+      mediaQueue,
+      outboundQueue,
+      reminderQueue,
+      campaignQueue,
+      summaryQueue,
+      templateSyncQueue,
+    ].map((q) => q.close()),
   )
   await Promise.allSettled([connection.quit(), database.close()])
   logger.info('bye')

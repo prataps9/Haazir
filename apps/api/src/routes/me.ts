@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { invites, memberships, organizations, users } from '@haazir/db'
-import { ROLES } from '@haazir/shared'
+import { AppError, ROLES } from '@haazir/shared'
 import { createInvite } from '../auth/invites'
 import { requireRole } from '../auth/middleware'
 import type { AppDeps } from '../deps'
@@ -75,29 +75,68 @@ export function membersRouter(deps: Pick<AppDeps, 'db' | 'appUrl' | 'now'>) {
     res.json({ members: rows, invites: pending })
   })
 
-  /** My own notification switches for this org (handoff push is on unless turned off). */
+  /**
+   * My own notification switches for this org: handoff push (on unless turned
+   * off) and, for owners and admins, the 8 PM summary on WhatsApp to my number.
+   */
   router.get('/members/me/notifications', async (req, res) => {
     const [row] = await deps.db
-      .select({ prefs: memberships.notifyPrefs })
+      .select({ prefs: memberships.notifyPrefs, role: memberships.role, phone: users.phone })
       .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
       .where(and(eq(memberships.orgId, orgOf(req).id), eq(memberships.userId, userOf(req).id)))
-    res.json({ handoffPush: row?.prefs?.handoff?.push !== false })
+    res.json({
+      handoffPush: row?.prefs?.handoff?.push !== false,
+      dailySummary: !!row?.prefs?.dailySummary,
+      phone: row?.phone ?? null,
+      canDailySummary: row?.role === 'owner' || row?.role === 'admin',
+    })
   })
 
   router.patch('/members/me/notifications', async (req, res) => {
     const org = orgOf(req)
-    const { handoffPush } = z.object({ handoffPush: z.boolean() }).parse(req.body)
+    const body = z
+      .object({
+        handoffPush: z.boolean().optional(),
+        dailySummary: z.boolean().optional(),
+        // An Indian mobile (10 digits) or a full number with country code; stored E.164 without "+".
+        phone: z
+          .string()
+          .trim()
+          .transform((p) => p.replace(/[\s()+-]/g, ''))
+          .pipe(z.string().regex(/^(\d{10}|\d{11,15})$/, 'Enter a WhatsApp number'))
+          .transform((p) => (p.length === 10 ? `91${p}` : p))
+          .nullable()
+          .optional(),
+      })
+      .parse(req.body)
     const where = and(eq(memberships.orgId, org.id), eq(memberships.userId, userOf(req).id))
     const [row] = await deps.db
-      .select({ prefs: memberships.notifyPrefs })
+      .select({ prefs: memberships.notifyPrefs, role: memberships.role })
       .from(memberships)
       .where(where)
-    const handoff = { email: row?.prefs?.handoff?.email ?? false, push: handoffPush }
-    await deps.db
-      .update(memberships)
-      .set({ notifyPrefs: { ...row?.prefs, handoff } })
-      .where(where)
-    res.json({ handoffPush })
+    if (body.dailySummary && row?.role !== 'owner' && row?.role !== 'admin')
+      throw new AppError('FORBIDDEN', 'The daily summary is for owners and admins')
+    const prefs = { ...row?.prefs }
+    if (body.handoffPush !== undefined)
+      prefs.handoff = { email: prefs.handoff?.email ?? false, push: body.handoffPush }
+    if (body.dailySummary !== undefined) prefs.dailySummary = body.dailySummary
+    await deps.db.update(memberships).set({ notifyPrefs: prefs }).where(where)
+    if (body.phone !== undefined)
+      await deps.db
+        .update(users)
+        .set({ phone: body.phone })
+        .where(eq(users.id, userOf(req).id))
+    const [me] = await deps.db
+      .select({ phone: users.phone })
+      .from(users)
+      .where(eq(users.id, userOf(req).id))
+    res.json({
+      handoffPush: prefs.handoff?.push !== false,
+      dailySummary: !!prefs.dailySummary,
+      phone: me?.phone ?? null,
+      canDailySummary: row?.role === 'owner' || row?.role === 'admin',
+    })
   })
 
   router.post('/members', requireRole('owner', 'admin'), async (req, res) => {

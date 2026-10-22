@@ -25,7 +25,7 @@ export interface PushSender {
 export async function notifyOrg(
   deps: { db: AnyDatabase; push: PushSender },
   orgId: string,
-  kind: keyof NotifyPrefs,
+  kind: Exclude<keyof NotifyPrefs, 'dailySummary'>,
   payload: PushPayload,
 ) {
   const members = await deps.db

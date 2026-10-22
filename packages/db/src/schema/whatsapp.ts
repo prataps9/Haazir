@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -172,6 +173,8 @@ export const messages = pgTable(
     errorCode: text(),
     errorTitle: text(),
     pricingCategory: text(),
+    /** Meta says whether it charges for this message (status webhook `pricing.billable`). */
+    billable: boolean(),
     costPaiseEstimate: integer(),
     sentBy: sentByEnum(),
     sentByUserId: uuid().references(() => users.id, { onDelete: 'set null' }),

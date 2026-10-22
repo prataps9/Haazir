@@ -21,6 +21,11 @@ export interface QueueOutboundInput {
   /** Our id of the inbound message this answers; lets the bot check it hasn't already. */
   inReplyToMessageId?: string
   isOptOutConfirmation?: boolean
+  /**
+   * Move the chat to the top of the inbox (default). Campaigns don't: 500
+   * broadcasts would bury the chats that need someone. A reply does.
+   */
+  bumpConversation?: boolean
   now?: Date
 }
 
@@ -91,10 +96,11 @@ export async function queueOutbound(
     .returning()
   if (!message) throw new Error('insert returned no row')
 
-  await db
-    .update(conversations)
-    .set({ lastMessageAt: now, lastMessagePreview: body?.slice(0, 120) ?? null })
-    .where(eq(conversations.id, row.conversation.id))
+  if (input.bumpConversation !== false)
+    await db
+      .update(conversations)
+      .set({ lastMessageAt: now, lastMessagePreview: body?.slice(0, 120) ?? null })
+      .where(eq(conversations.id, row.conversation.id))
 
   // jobId = message id: enqueueing the same message twice sends it once.
   await deps.outboundQueue.add('send', { messageId: message.id }, { jobId: message.id })

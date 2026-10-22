@@ -74,6 +74,8 @@ export interface NotifyPrefs {
   handoff?: { push: boolean; email: boolean }
   newLead?: { push: boolean; email: boolean }
   payment?: { push: boolean; email: boolean }
+  /** Roz shaam 8 baje ka hisaab on WhatsApp, to `users.phone` (spec §13). */
+  dailySummary?: boolean
 }
 
 /** Which user belongs to which org, and as what. A user can belong to several orgs. */

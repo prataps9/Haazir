@@ -3,7 +3,13 @@ import { contacts, conversations, messages, whatsappAccounts, type AnyDatabase }
 import { seed } from '@haazir/db/seed'
 import { DEMO_PASSWORD, DEMO_USERS, SECOND_ORG_OWNER } from '@haazir/db/seed-data'
 import { createTestDb } from '@haazir/db/testing'
-import type { IngestJob, OrgEventName, OutboundJob, ReminderJob } from '@haazir/messaging'
+import type {
+  CampaignJob,
+  IngestJob,
+  OrgEventName,
+  OutboundJob,
+  ReminderJob,
+} from '@haazir/messaging'
 import { LocalStorage } from '@haazir/storage'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -22,6 +28,7 @@ export function recorders() {
     outbound: [] as OutboundJob[],
     ingest: [] as IngestJob[],
     reminder: [] as { data: ReminderJob; opts?: { jobId?: string; delay?: number } }[],
+    campaign: [] as { data: CampaignJob; opts?: { jobId?: string; delay?: number } }[],
     events: [] as { orgId: string; event: OrgEventName; data: unknown }[],
   }
 }
@@ -96,6 +103,7 @@ export async function createTestApp(overrides: Partial<AppDeps> = {}) {
       outbound: { add: async (_n, data) => void rec.outbound.push(data) },
       ingest: { add: async (_n, data) => void rec.ingest.push(data) },
       reminder: { add: async (_n, data, opts) => void rec.reminder.push({ data, opts }) },
+      campaign: { add: async (_n, data, opts) => void rec.campaign.push({ data, opts }) },
     },
     storage: new LocalStorage(storageDir),
     models: null,
