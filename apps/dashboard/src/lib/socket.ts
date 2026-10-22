@@ -77,11 +77,23 @@ export function useOrgSocket(
         tone: 'human',
       })
     const onKnowledge = () => void qc.invalidateQueries({ queryKey: ['knowledge'] })
+    const refresh =
+      (...keys: string[]) =>
+      () => {
+        for (const key of keys) void qc.invalidateQueries({ queryKey: [key] })
+      }
+    // The bot books demos and payments arrive while the screen is open.
+    const onLead = refresh('leads', 'lead', 'summary', 'conversations')
+    const onDemo = refresh('demos', 'summary', 'lead')
+    const onFee = refresh('fees', 'student', 'students', 'summary')
     s.on('message:new', onMessage)
     s.on('message:updated', onMessage)
     s.on('conversation:updated', onConversation)
     s.on('handoff', onHandoff)
     s.on('knowledge:updated', onKnowledge)
+    s.on('lead:updated', onLead)
+    s.on('demo:updated', onDemo)
+    s.on('fee:updated', onFee)
     return () => {
       s.off('connect', join)
       s.off('message:new', onMessage)
@@ -89,6 +101,9 @@ export function useOrgSocket(
       s.off('conversation:updated', onConversation)
       s.off('handoff', onHandoff)
       s.off('knowledge:updated', onKnowledge)
+      s.off('lead:updated', onLead)
+      s.off('demo:updated', onDemo)
+      s.off('fee:updated', onFee)
     }
   }, [orgId, qc, labels])
 }

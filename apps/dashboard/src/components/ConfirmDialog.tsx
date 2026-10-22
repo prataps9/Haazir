@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
+import type { ReactNode } from 'react'
 import { Button } from './Button'
 
 interface ConfirmDialogProps {
@@ -6,12 +7,15 @@ interface ConfirmDialogProps {
   onOpenChange(open: boolean): void
   title: string
   body?: string
-  confirmLabel: string
+  /** Extra content under the body, e.g. the reasons to pick from. */
+  children?: ReactNode
+  /** Without a confirm label, only the cancel button shows (the content is the choice). */
+  confirmLabel?: string
   cancelLabel: string
   /** Red confirm button for things that can't be undone (delete, bot off). */
   danger?: boolean
   loading?: boolean
-  onConfirm(): void
+  onConfirm?(): void
 }
 
 /** Asks once before something that's hard to take back. Radix handles focus and Escape. */
@@ -22,6 +26,7 @@ export function ConfirmDialog({
   body,
   confirmLabel,
   cancelLabel,
+  children,
   danger,
   loading,
   onConfirm,
@@ -40,6 +45,7 @@ export function ConfirmDialog({
               {body}
             </Dialog.Description>
           )}
+          {children && <div className="mt-4">{children}</div>}
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <Dialog.Close asChild>
               <Button variant="ghost" size="md">
