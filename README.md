@@ -21,9 +21,11 @@ packages/
     whatsapp/   Cloud API v26.0: webhook parser, signature check, window rules, sender
   messaging/    The outbound gate every send goes through
   storage/      S3-compatible (R2, MinIO) or local-disk file storage
-  ai-core/      The brain: router, retrieval, tools, prompt, guardrails, ingestion, speech-to-text
+  ai-core/      The brain: router, retrieval, tools, prompt, guardrails, ingestion, speech-to-text,
+                and the demo-booking flow
+  coaching/     Leads, demo bookings, students, fee installments, receipts, Razorpay payment links
 evals/          73 coaching conversations + the runner behind `pnpm evals`
-scripts/        e2e-whatsapp.sh (CI's end-to-end check)
+scripts/        e2e-whatsapp.sh and e2e-coaching.sh (CI's end-to-end checks)
 docs/           Product spec
 ```
 
@@ -186,7 +188,9 @@ CI (`.github/workflows/ci.yml`) runs all of these. A second job migrates and see
 Postgres 16 + pgvector (twice, to prove both are idempotent), then runs
 `scripts/e2e-whatsapp.sh`: the built API and worker against real Postgres and Redis, with the
 mock Graph API standing in for Meta. It sends one webhook twice and expects one stored message
-and one reply that reaches `read`.
+and one reply that reaches `read`. Then `scripts/e2e-coaching.sh` walks Phase 4's whole journey
+the same way: an enquiry books a demo by taps, the reminder goes out, staff mark "came" and admit,
+the payment link is sent, a signed Razorpay webhook pays it, the receipt goes out and Home counts it.
 
 ## Manual test checklist
 
@@ -256,6 +260,37 @@ Needs `pnpm dev`, a seeded database and `pnpm whatsapp:mock`.
 9. `pnpm admin:create ...`, sign in, open **Admin**: create an institute (copy the invite link),
    open it, save a number, press **Test connection** against the mock.
 
+### Phase 4
+
+Needs `pnpm dev`, a freshly seeded database and `pnpm whatsapp:mock`. No AI key needed: the demo
+flow, the course list and the reminders work without one.
+
+1. `pnpm whatsapp:simulate "Namaste"`: the main menu with three buttons. **Leads** shows a new
+   lead in **New**.
+2. `pnpm whatsapp:simulate --tap menu_demo "Free demo"`: a list of courses with demo slots. Tap
+   through with `--tap <row id> --list "<title>"` (the ids are in the mock's log): course, day,
+   time, name, **Haan, book karo**. The confirmation names the day and time in IST; the lead moves
+   to **Demo booked** and Home's "डेमो बुक हुईं" goes up.
+3. The same in the dashboard: **Teach the bot** > Test, type "demo", tap the buttons and rows. It
+   shows "would book the demo" and sends nothing.
+4. Home > today's demos: press **आए** on the booking. The lead moves to **Demo done**.
+5. Open the lead > **Admission**, pick RS-CIT: the ₹4,500 installment appears in **Fees** as due today.
+6. **Settings** > Razorpay: save `rzp_test_…` keys and a webhook secret. **Fees** > **Send link**:
+   the mock logs a payment link and a WhatsApp message with it. With `RAZORPAY_BASE_URL` unset
+   this calls the real Razorpay test API.
+7. Pay it: post a signed `payment_link.paid` to `/webhooks/razorpay/org/<orgId>` (see
+   `apps/api/scripts/e2e-coaching.ts`) or press **Cash received**. The row turns **जमा** with a
+   receipt number `R-0xxx`, and the student gets the receipt on WhatsApp. Posting the same webhook
+   again changes nothing.
+8. **Fees** > **सभी बकाया वालों को रिमाइंडर**: the dialog says how many will get a message first.
+   Between 9 PM and 8 AM IST reminders wait until morning.
+9. **Leads** > **Export CSV** opens in Excel with Hindi names intact.
+10. **Courses & batches** > a course: an installment plan that doesn't add up to the fee can't
+    be saved. Upload a brochure PDF: the bot can answer from it after indexing, and the onboarding
+    wizard (`/onboarding`) offers its courses as editable cards when an AI key is set.
+11. Sign in as `sunita@pragati.example`: none of Shiksha's leads, students, fees or courses show,
+    and their ids answer 404.
+
 ## Teams, tenants and the dashboard (Phase 3)
 
 - **Login:** Better Auth (email + password, cookie session). Invite-only: the super admin creates an
@@ -291,6 +326,32 @@ pnpm dev
 Demo logins: `rakesh@shiksha.example` (owner), `pooja@shiksha.example` (agent) and
 `sunita@pragati.example` (owner of the second institute). Seeded passwords are only set outside
 production.
+
+## Leads, demos and fees (Phase 4)
+
+- **The bot books demos.** The main menu's demo button starts a tap-through flow (course → day →
+  time → student's name → confirm) that only offers batches with free-demo slots in the next 30
+  days and never a time already past. It works without an AI key; with one, the bot can also book
+  from a typed message through the `book_demo` tool. Bookings are idempotent per contact and time.
+- **Every enquiry is a lead** from its first message (`new → contacted → demo_booked → demo_done →
+admitted`, or `lost` with a reason). A staff reply moves a new lead to contacted; booking and
+  attendance move it forward; it never moves back on its own.
+- **Reminders** run on the `reminder` queue: 3 hours before a demo, a follow-up the day after if
+  they came, and a daily fee sweep at 10 AM IST (once in the 3 days before, on the day, then 3 and 7 days late).
+  Inside WhatsApp's 24-hour window they go as free text; outside it as an approved template
+  (Hindi, Hinglish or English, seeded per org). Nothing goes out between 9 PM and 8 AM IST, and
+  opted-out contacts are skipped.
+- **Fees:** an admission creates the installments from the course's plan. Payment links use the
+  institute's own Razorpay account (keys stored encrypted); the webhook at
+  `/webhooks/razorpay/org/:orgId` is checked against that org's secret, marks the installment
+  paid once, numbers the receipt (`R-0001` onwards, per org) and sends it on WhatsApp. Cash and
+  UPI received at the counter are recorded the same way.
+- **Screens:** Home (Aaj ka hisaab), Leads (Kanban on desktop, stage tabs on phones, CSV export),
+  Courses & batches, Fees, onboarding wizard, and a lead panel in Chat. Screenshots in light/dark,
+  Hindi/English are in [`docs/screenshots/phase4`](docs/screenshots/phase4).
+
+To try the Razorpay calls without an account, point `RAZORPAY_BASE_URL` at the mock
+(`http://localhost:4010`); leave it unset to use Razorpay's test mode with `rzp_test_` keys.
 
 ## Database
 

@@ -16,6 +16,7 @@ test steps, tests added and known gaps (§23), then stop.
 - `packages/messaging`: `queueOutbound`, the one place anything is sent from. Never call `GraphClient.send` elsewhere.
 - `packages/storage`: `createStorage(env)`: S3-compatible or local disk.
 - `packages/ai-core`: the brain. `decideReply` decides and writes nothing; `effects.ts` applies decisions. Ingestion, speech-to-text, tools, guardrails and the versioned prompt live here.
+- `packages/coaching`: leads, demo bookings, students, installments, receipts, Razorpay (`createRazorpay`, webhook signature). Used by the API and worker; the bot's writes come back from `decideReply` as `actions` and the worker applies them (`apps/worker/src/agent.ts`).
 - `evals/`: YAML conversations + runner. A bot bug found in the wild becomes an eval case first.
 
 ## Rules that bite
@@ -38,6 +39,9 @@ test steps, tests added and known gaps (§23), then stop.
 - Anything shown to a person after a failed request goes through `errorText` (`apps/dashboard/src/lib/errors.ts`): server text for validation only, never raw errors.
 - Events to the dashboard go through `OrgEvents.emit` (`packages/messaging`), never straight to Socket.IO; the worker and API are different processes.
 
+- Automated messages (reminders, receipts, links) go through `sendAutomation` (`packages/messaging`): it picks free text or an approved template by the 24h window, holds them in quiet hours (9 PM–8 AM IST) and skips opted-out contacts.
+- Razorpay runs on each institute's own keys (encrypted in `org_payment_accounts`). `RAZORPAY_BASE_URL` points at the mock only in local and CI runs.
+
 ## Checks
 
-`pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check`, the same as CI.
+`pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check`, the same as CI. CI also runs `scripts/e2e-whatsapp.sh` and `scripts/e2e-coaching.sh` on real Postgres and Redis.

@@ -26,6 +26,12 @@ Three lines per phase (spec, "How to use this file").
 - Dashboard screens: login and invite, Chat (live list, conversation, takeover and hand-back, window timer, contact panel), Bot ko sikhayein, Bot settings with a playground, Settings (notifications), and a super-admin screen that creates institutes and connects a WhatsApp number by hand. Handoff sends a socket event and a Web Push notification (VAPID, service worker deep link). The bot now uses the owner's menu button titles.
 - 294 automated tests across the repo, all with mock models. Run against real Postgres and Redis with the mock Graph API: seed, log in as both institutes, take over, reply, reply read.
 
-## Next: Phase 4, leads, courses and fees
+## Phase 4: coaching vertical (built; Razorpay and templates untested against the real services)
 
-Needs from Pratap: an LLM key to run the evals and close Phase 2's "done when"; ~20 real Hindi voice notes to pick OpenAI vs Sarvam; a decision on where the dashboard and API are hosted for staging; a real Meta test number to check the Phase 1 loop and Phase 3's Android push; a read of the 73 eval cases.
+- New `packages/coaching` (leads, demo bookings, students, installments, receipts, Razorpay payment links + webhook check) and migration `0006_coaching_crm`. The bot books demos through a tap-through flow that works without an AI key, plus write tools (`book_demo`, `upsert_lead`, `send_brochure`, `send_location`, `get_my_fee_status`) applied by the worker after the reply; prompt `answer-v2`. Reminders on a `reminder` queue (demo 3h before, follow-up, daily fee sweep) respect the 24h window, templates, quiet hours and opt-out.
+- Dashboard: Home "Aaj ka hisaab", Leads (Kanban + CSV), Courses & batches, Fees (links, cash, bulk reminders, walk-in admission), onboarding wizard with brochure auto-extract, Razorpay settings, Chat lead panel, tappable playground. Cross-org cases for every new route.
+- 366 automated tests, all mock models. `scripts/e2e-coaching.sh` runs the "done when" journey on real Postgres and Redis in CI: enquiry → demo by taps → reminder → came → admitted → link → paid webhook → receipt → Home.
+
+## Next: Phase 5, templates, campaigns and reports
+
+Needs from Pratap: Razorpay test keys for one institute to try a real payment link and webhook; Meta approval for the seeded reminder templates (names in `packages/shared/src/templates.ts`); an LLM key to run the evals (now 73 cases on `answer-v2`) and the brochure extract; ~20 real Hindi voice notes to pick OpenAI vs Sarvam; where the dashboard and API are hosted for staging; a real Meta test number for the Phase 1 loop and Phase 3's Android push; a read of the eval cases.
