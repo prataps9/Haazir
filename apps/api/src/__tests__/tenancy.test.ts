@@ -3,9 +3,11 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   auditLogs,
+  campaigns,
   conversations,
   knowledgeFaqs,
   knowledgeSources,
+  templates,
   unansweredQuestions,
 } from '@haazir/db'
 import { createTestApp, ORIGIN } from './helpers'
@@ -121,6 +123,16 @@ describe('tenant isolation: org A can never see or change org B', () => {
       .values({ orgId: b.org.id, question: 'Hostel?', normalized: 'hostel' })
       .returning()
 
+    const [templateB] = await t.db
+      .select()
+      .from(templates)
+      .where(eq(templates.orgId, b.org.id))
+      .limit(1)
+    const [campaignB] = await t.db
+      .insert(campaigns)
+      .values({ orgId: b.org.id, name: 'B only', templateId: templateB!.id })
+      .returning()
+
     const attempts = [
       owner.get(`/api/v1/conversations/${b.conversation.id}`),
       owner.get(`/api/v1/conversations/${b.conversation.id}/messages`),
@@ -135,6 +147,22 @@ describe('tenant isolation: org A can never see or change org B', () => {
       owner.delete(`/api/v1/knowledge/faqs/${faqB!.id}`),
       owner.post(`/api/v1/knowledge/unanswered/${unansweredB!.id}/resolve`).send({ answer: 'x' }),
       owner.get(`/api/v1/media/${b.message.id}`),
+      owner.get(`/api/v1/conversations/${b.conversation.id}/templates`),
+      owner
+        .post(`/api/v1/conversations/${b.conversation.id}/template`)
+        .send({ templateId: templateB!.id, values: [] }),
+      owner.get(`/api/v1/templates/${templateB!.id}`),
+      owner.patch(`/api/v1/templates/${templateB!.id}`).send({ body: 'hacked text' }),
+      owner.post(`/api/v1/templates/${templateB!.id}/submit`),
+      owner.delete(`/api/v1/templates/${templateB!.id}`),
+      owner.get(`/api/v1/campaigns/${campaignB!.id}`),
+      owner.patch(`/api/v1/campaigns/${campaignB!.id}`).send({ name: 'hacked' }),
+      owner.post(`/api/v1/campaigns/${campaignB!.id}/estimate`),
+      owner.get(`/api/v1/campaigns/${campaignB!.id}/preview`),
+      owner.post(`/api/v1/campaigns/${campaignB!.id}/schedule`).send({}),
+      owner.post(`/api/v1/campaigns/${campaignB!.id}/cancel`),
+      owner.delete(`/api/v1/campaigns/${campaignB!.id}`),
+      owner.post('/api/v1/campaigns').send({ name: 'x', templateId: templateB!.id }),
     ]
     const results = await Promise.all(attempts)
     results.forEach((res, i) => expect(res.status, `attempt ${i + 1}`).toBe(404))

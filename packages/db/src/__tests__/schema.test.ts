@@ -49,7 +49,7 @@ afterAll(async () => {
 })
 
 describe('migrations', () => {
-  it('creates the tables so far (core, WhatsApp, AI + coaching, auth, CRM + fees)', async () => {
+  it('creates the tables so far (core, WhatsApp, AI + coaching, auth, CRM + fees, campaigns)', async () => {
     const result = rows<{ table_name: string }>(
       await db.execute(
         sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
@@ -61,6 +61,8 @@ describe('migrations', () => {
       'audit_logs',
       'batches',
       'bot_configs',
+      'campaign_recipients',
+      'campaigns',
       'contacts',
       'conversations',
       'courses',
@@ -74,6 +76,7 @@ describe('migrations', () => {
       'leads',
       'memberships',
       'messages',
+      'meta_rates',
       'org_payment_accounts',
       'organizations',
       'plans',

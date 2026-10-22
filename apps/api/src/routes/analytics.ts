@@ -196,7 +196,7 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
           .select({
             enquiries: sql<number>`count(*)::int`,
             demos: sql<number>`(count(*) filter (where ${leads.stage} in ('demo_booked', 'demo_done', 'admitted')
-              or exists (select 1 from ${demoBookings} d where d.lead_id = ${leads.id})))::int`,
+              or exists (select 1 from demo_bookings d where d.lead_id = "leads"."id")))::int`,
             admitted: sql<number>`(count(*) filter (where ${leads.stage} = 'admitted'))::int`,
             fromCampaigns: sql<number>`(count(*) filter (where ${leads.source} = 'campaign'))::int`,
           })

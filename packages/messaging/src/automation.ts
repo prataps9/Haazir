@@ -11,6 +11,7 @@ import {
   AppError,
   defaultTemplate,
   fillTemplate,
+  partsOf,
   templateKey,
   templateParam,
   type CopyLanguage,
@@ -175,6 +176,7 @@ async function templateContent(
     kind: 'template',
     name: chosen.name,
     language: chosen.language,
+    preview: fillTemplate(partsOf(chosen.components).body, values),
     components: [
       ...(values.length
         ? [

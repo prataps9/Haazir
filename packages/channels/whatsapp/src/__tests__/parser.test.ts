@@ -89,6 +89,7 @@ describe('parseWebhook: statuses', () => {
         timestamp: new Date(1790407400 * 1000),
         recipient: '919812345678',
         pricingCategory: 'service',
+        billable: false,
         errors: [],
       },
     ])
@@ -108,9 +109,9 @@ describe('parseWebhook: statuses', () => {
 })
 
 describe('parseWebhook: robustness', () => {
-  it('ignores fields it does not handle yet', () => {
-    const result = parseWebhook(fx.templateStatusUpdate)
-    expect(result.ignoredFields).toEqual(['message_template_status_update'])
+  it('ignores fields it does not handle', () => {
+    const result = parseWebhook(fx.accountUpdate)
+    expect(result.ignoredFields).toEqual(['account_update'])
     expect(result.problems).toEqual([])
   })
 
@@ -126,6 +127,31 @@ describe('parseWebhook: robustness', () => {
     const result = parseWebhook(body)
     expect(result.messages.map((m) => m.waMessageId)).toEqual(['wamid.TEXT1'])
     expect(result.problems).toHaveLength(1)
+  })
+})
+
+describe('parseWebhook: templates', () => {
+  it('reads a review result, keyed by the business account', () => {
+    expect(parseWebhook(fx.templateStatusUpdate()).templates).toEqual([
+      {
+        wabaId: '102290129340398',
+        metaTemplateId: '1689556908129832',
+        name: 'fee_due',
+        language: 'hi',
+        event: 'APPROVED',
+        reason: undefined,
+      },
+    ])
+  })
+
+  it('keeps the rejection reason', () => {
+    const [t] = parseWebhook(fx.templateStatusUpdate('REJECTED', 'INVALID_FORMAT')).templates
+    expect(t).toMatchObject({ event: 'REJECTED', reason: 'INVALID_FORMAT' })
+  })
+
+  it('reads a category change in our lower case', () => {
+    const [t] = parseWebhook(fx.templateCategoryUpdate).templates
+    expect(t).toMatchObject({ metaTemplateId: '1689556908129832', newCategory: 'marketing' })
   })
 })
 

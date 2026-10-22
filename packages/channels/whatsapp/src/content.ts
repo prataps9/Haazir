@@ -25,6 +25,8 @@ export type OutboundContent =
       name: string
       language: string
       components?: Record<string, unknown>[]
+      /** The text as the person reads it, for our inbox. Never sent to Meta. */
+      preview?: string
     }
   | { kind: 'image'; mediaId?: string; link?: string; storageKey?: string; caption?: string }
   | {
@@ -216,6 +218,6 @@ export function bodyOf(content: OutboundContent): string | null {
     case 'location':
       return content.name ?? content.address ?? null
     case 'template':
-      return null
+      return content.preview ?? null
   }
 }

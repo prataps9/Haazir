@@ -227,17 +227,40 @@ describe('notification preferences', () => {
   it('each person switches handoff push on or off for themselves only', async () => {
     const staff = await t.login(t.users.staff)
     const owner = await t.login(t.users.owner)
-    expect((await staff.get('/api/v1/members/me/notifications')).body).toEqual({
+    expect((await staff.get('/api/v1/members/me/notifications')).body).toMatchObject({
       handoffPush: true,
     })
     await staff.patch('/api/v1/members/me/notifications').send({ handoffPush: false })
-    expect((await staff.get('/api/v1/members/me/notifications')).body).toEqual({
+    expect((await staff.get('/api/v1/members/me/notifications')).body).toMatchObject({
       handoffPush: false,
     })
-    expect((await owner.get('/api/v1/members/me/notifications')).body).toEqual({
+    expect((await owner.get('/api/v1/members/me/notifications')).body).toMatchObject({
       handoffPush: true,
     })
     await staff.patch('/api/v1/members/me/notifications').send({ handoffPush: true })
+  })
+
+  it('owners turn on the 8 PM summary to their own WhatsApp number; agents cannot', async () => {
+    const owner = await t.login(t.users.owner)
+    const res = await owner
+      .patch('/api/v1/members/me/notifications')
+      .send({ dailySummary: true, phone: '98290 12345' })
+    expect(res.body).toMatchObject({
+      dailySummary: true,
+      phone: '919829012345',
+      canDailySummary: true,
+      handoffPush: true,
+    })
+    expect(
+      (await owner.patch('/api/v1/members/me/notifications').send({ phone: '12' })).status,
+    ).toBe(400)
+
+    const staff = await t.login(t.users.staff)
+    expect((await staff.get('/api/v1/members/me/notifications')).body.canDailySummary).toBe(false)
+    expect(
+      (await staff.patch('/api/v1/members/me/notifications').send({ dailySummary: true })).status,
+    ).toBe(403)
+    await owner.patch('/api/v1/members/me/notifications').send({ dailySummary: false })
   })
 })
 

@@ -1,15 +1,6 @@
 import { and, asc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm'
 import type { campaigns, templates } from '@haazir/db'
-import {
-  batches,
-  campaignRecipients,
-  contacts,
-  courses,
-  leads,
-  messages,
-  students,
-  type AnyDatabase,
-} from '@haazir/db'
+import { campaignRecipients, contacts, messages, type AnyDatabase } from '@haazir/db'
 import {
   costPaise,
   fillTemplate,
@@ -31,6 +22,13 @@ type Template = typeof templates.$inferSelect
 export const TEAM_OPT_IN_SOURCE = 'team'
 
 /**
+ * The outer contact row, always qualified: Drizzle leaves columns bare in a
+ * single-table query, and a bare "id" inside a subquery would bind to the
+ * subquery's own table.
+ */
+const CONTACT_ID = sql.raw('"contacts"."id"')
+
+/**
  * Who matches an audience's filters, before the opt-in rule. Playground and
  * team contacts never count. Course and batch match an enquiry or an admission.
  */
@@ -40,27 +38,29 @@ function audienceFilters(orgId: string, audience: CampaignAudience): SQL[] {
     sql`${contacts.waId} not like 'playground-%'`,
     sql`coalesce(${contacts.optInSource}, '') <> ${TEAM_OPT_IN_SOURCE}`,
   ]
-  if (audience.tags?.length)
-    where.push(
-      sql`${contacts.tags} && ${sql`array[${sql.join(
-        audience.tags.map((t) => sql`${t}`),
-        sql`, `,
-      )}]::text[]`}`,
+  const list = (values: string[]) =>
+    sql.join(
+      values.map((v) => sql`${v}`),
+      sql`, `,
     )
+  if (audience.tags?.length)
+    where.push(sql`${contacts.tags} && array[${list(audience.tags)}]::text[]`)
   if (audience.stages?.length)
     where.push(
-      sql`exists (select 1 from ${leads} where ${leads.contactId} = ${contacts.id} and ${leads.orgId} = ${orgId} and ${inArray(leads.stage, audience.stages)})`,
+      sql`exists (select 1 from leads l where l.contact_id = ${CONTACT_ID} and l.org_id = ${orgId}
+        and l.stage::text in (${list(audience.stages)}))`,
     )
-  if (audience.courseIds?.length)
+  for (const [ids, column] of [
+    [audience.courseIds, 'course_id'],
+    [audience.batchIds, 'batch_id'],
+  ] as const) {
+    if (!ids?.length) continue
+    const col = sql.raw(column)
     where.push(
-      sql`(exists (select 1 from ${leads} where ${leads.contactId} = ${contacts.id} and ${leads.orgId} = ${orgId} and ${inArray(leads.courseId, audience.courseIds)})
-        or exists (select 1 from ${students} where ${students.contactId} = ${contacts.id} and ${students.orgId} = ${orgId} and ${inArray(students.courseId, audience.courseIds)}))`,
+      sql`(exists (select 1 from leads l where l.contact_id = ${CONTACT_ID} and l.org_id = ${orgId} and l.${col} in (${list(ids)}))
+        or exists (select 1 from students s where s.contact_id = ${CONTACT_ID} and s.org_id = ${orgId} and s.${col} in (${list(ids)})))`,
     )
-  if (audience.batchIds?.length)
-    where.push(
-      sql`(exists (select 1 from ${leads} where ${leads.contactId} = ${contacts.id} and ${leads.orgId} = ${orgId} and ${inArray(leads.batchId, audience.batchIds)})
-        or exists (select 1 from ${students} where ${students.contactId} = ${contacts.id} and ${students.orgId} = ${orgId} and ${inArray(students.batchId, audience.batchIds)}))`,
-    )
+  }
   return where
 }
 
@@ -98,17 +98,17 @@ export interface RecipientContext {
 
 /** A contact's name, course and batch (an admission wins over an enquiry). */
 export const recipientContext = {
-  name: sql<string | null>`coalesce(${contacts.name}, ${contacts.profileName})`,
+  name: sql<string | null>`coalesce("contacts"."name", "contacts"."profile_name")`,
   course: sql<string | null>`coalesce(
-    (select ${courses.shortName} from ${students} join ${courses} on ${courses.id} = ${students.courseId}
-      where ${students.contactId} = ${contacts.id} order by ${students.createdAt} desc limit 1),
-    (select ${courses.shortName} from ${leads} join ${courses} on ${courses.id} = ${leads.courseId}
-      where ${leads.contactId} = ${contacts.id} limit 1))`,
+    (select c.short_name from students s join courses c on c.id = s.course_id
+      where s.contact_id = ${CONTACT_ID} order by s.created_at desc limit 1),
+    (select c.short_name from leads l join courses c on c.id = l.course_id
+      where l.contact_id = ${CONTACT_ID} limit 1))`,
   batch: sql<string | null>`coalesce(
-    (select ${batches.name} from ${students} join ${batches} on ${batches.id} = ${students.batchId}
-      where ${students.contactId} = ${contacts.id} order by ${students.createdAt} desc limit 1),
-    (select ${batches.name} from ${leads} join ${batches} on ${batches.id} = ${leads.batchId}
-      where ${leads.contactId} = ${contacts.id} limit 1))`,
+    (select b.name from students s join batches b on b.id = s.batch_id
+      where s.contact_id = ${CONTACT_ID} order by s.created_at desc limit 1),
+    (select b.name from leads l join batches b on b.id = l.batch_id
+      where l.contact_id = ${CONTACT_ID} limit 1))`,
 }
 
 /** {{1}}, {{2}}… for one person, flattened as Meta requires. */
@@ -141,6 +141,7 @@ export function campaignContent(template: Template, values: string[]): OutboundC
     components: values.length
       ? [{ type: 'body', parameters: values.map((text) => ({ type: 'text', text })) }]
       : [],
+    preview: campaignPreview(template, values),
   }
 }
 
@@ -182,8 +183,8 @@ export async function campaignResults(db: AnyDatabase, campaign: Campaign, templ
       errorTitle: messages.errorTitle,
       billable: messages.billable,
       pricingCategory: messages.pricingCategory,
-      replied: sql<boolean>`exists (select 1 from ${messages} i where i.conversation_id = ${messages.conversationId}
-        and i.direction = 'in' and i.created_at > ${messages.createdAt})`,
+      replied: sql<boolean>`exists (select 1 from messages i where i.conversation_id = "messages"."conversation_id"
+        and i.direction = 'in' and i.created_at > "messages"."created_at")`,
     })
     .from(campaignRecipients)
     .leftJoin(messages, eq(messages.id, campaignRecipients.messageId))
@@ -243,20 +244,26 @@ export async function campaignResults(db: AnyDatabase, campaign: Campaign, templ
 
 /** The next people to send to, in a stable order, with what their variables need. */
 export async function pendingRecipients(db: AnyDatabase, campaignId: string, limit: number) {
-  return db
-    .select({
-      id: campaignRecipients.id,
-      contactId: campaignRecipients.contactId,
-      optInStatus: contacts.optInStatus,
-      ...recipientContext,
-    })
-    .from(campaignRecipients)
-    .innerJoin(contacts, eq(contacts.id, campaignRecipients.contactId))
-    .where(
-      and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, 'pending')),
-    )
-    .orderBy(asc(campaignRecipients.createdAt), asc(campaignRecipients.id))
-    .limit(limit)
+  return (
+    db
+      .select({
+        id: campaignRecipients.id,
+        contactId: campaignRecipients.contactId,
+        optInStatus: contacts.optInStatus,
+        ...recipientContext,
+      })
+      .from(campaignRecipients)
+      .innerJoin(contacts, eq(contacts.id, campaignRecipients.contactId))
+      .where(
+        and(
+          eq(campaignRecipients.campaignId, campaignId),
+          eq(campaignRecipients.status, 'pending'),
+        ),
+      )
+      // The audience's own order (oldest contacts first), so batches are predictable.
+      .orderBy(asc(contacts.createdAt), asc(contacts.id))
+      .limit(limit)
+  )
 }
 
 /**

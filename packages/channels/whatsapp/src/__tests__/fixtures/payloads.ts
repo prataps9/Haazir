@@ -194,7 +194,27 @@ export const failedStatus = status('wamid.OUT2', 'failed', {
   ],
 })
 
-export const templateStatusUpdate = envelope(
-  { event: 'APPROVED' },
-  'message_template_status_update',
+export const templateStatusUpdate = (event = 'APPROVED', reason = 'NONE') =>
+  envelope(
+    {
+      event,
+      message_template_id: 1689556908129832,
+      message_template_name: 'fee_due',
+      message_template_language: 'hi',
+      reason,
+    },
+    'message_template_status_update',
+  )
+
+export const templateCategoryUpdate = envelope(
+  {
+    message_template_id: 1689556908129832,
+    message_template_name: 'fee_due',
+    message_template_language: 'hi',
+    previous_category: 'UTILITY',
+    new_category: 'MARKETING',
+  },
+  'template_category_update',
 )
+
+export const accountUpdate = envelope({ event: 'VERIFIED_ACCOUNT' }, 'account_update')

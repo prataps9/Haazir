@@ -1,11 +1,17 @@
 import { Router } from 'express'
-import { and, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import { moveLead } from '@haazir/coaching'
-import { contacts, conversations, leads, memberships, messages, users } from '@haazir/db'
+import { contacts, conversations, leads, memberships, messages, templates, users } from '@haazir/db'
 import { HUMAN_MODE_MS } from '@haazir/ai-core'
-import { conversationSummary, messageView, queueOutbound } from '@haazir/messaging'
-import { AppError, LEAD_STAGES } from '@haazir/shared'
+import {
+  campaignContent,
+  conversationSummary,
+  messageView,
+  queueOutbound,
+  recipientContext,
+} from '@haazir/messaging'
+import { AppError, LEAD_STAGES, partsOf, templateParam, variableCount } from '@haazir/shared'
 import type { AppDeps } from '../deps'
 import { audit, cursor, orgOf, userOf, uuidParam } from '../lib/http'
 
@@ -123,26 +129,19 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
     })
   })
 
-  /** Staff reply (window-checked). Replying also takes the chat over from the bot. */
-  router.post('/conversations/:id/messages', async (req, res) => {
+  /**
+   * After staff send anything: the chat is theirs for a while (the bot stays
+   * quiet), and a new enquiry becomes "contacted".
+   */
+  const afterStaffSend = async (
+    req: Parameters<typeof orgOf>[0],
+    id: string,
+    current: Awaited<ReturnType<typeof loadConversation>>,
+    messageId: string,
+    now: Date,
+  ) => {
     const org = orgOf(req)
     const user = userOf(req)
-    const { id } = uuidParam.parse(req.params)
-    const { text } = z.object({ text: z.string().trim().min(1).max(4096) }).parse(req.body)
-    const current = await loadConversation(org.id, id)
-    const now = deps.now()
-
-    const message = await queueOutbound(
-      { db, outboundQueue: deps.queues.outbound },
-      {
-        orgId: org.id,
-        conversationId: id,
-        content: { kind: 'text', body: text },
-        sentBy: 'user',
-        sentByUserId: user.id,
-        now,
-      },
-    )
     await db
       .update(conversations)
       .set({
@@ -176,10 +175,112 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
       })
       deps.events.emit(org.id, 'lead:updated', { leadId: lead.id })
     }
-    const [view] = await db.select(messageView).from(messages).where(eq(messages.id, message.id))
+    const [view] = await db.select(messageView).from(messages).where(eq(messages.id, messageId))
     deps.events.emit(org.id, 'message:new', view)
     await announce(org.id, id)
-    res.status(201).json(view)
+    return view
+  }
+
+  /** Staff reply (window-checked). Replying also takes the chat over from the bot. */
+  router.post('/conversations/:id/messages', async (req, res) => {
+    const org = orgOf(req)
+    const user = userOf(req)
+    const { id } = uuidParam.parse(req.params)
+    const { text } = z.object({ text: z.string().trim().min(1).max(4096) }).parse(req.body)
+    const current = await loadConversation(org.id, id)
+    const now = deps.now()
+
+    const message = await queueOutbound(
+      { db, outboundQueue: deps.queues.outbound },
+      {
+        orgId: org.id,
+        conversationId: id,
+        content: { kind: 'text', body: text },
+        sentBy: 'user',
+        sentByUserId: user.id,
+        now,
+      },
+    )
+    res.status(201).json(await afterStaffSend(req, id, current, message.id, now))
+  })
+
+  /**
+   * The approved templates staff can send here once the 24-hour window has
+   * closed (spec §16.4), with this person's name, course and batch filled in
+   * where the template asks for them.
+   */
+  router.get('/conversations/:id/templates', async (req, res) => {
+    const org = orgOf(req)
+    const { id } = uuidParam.parse(req.params)
+    const current = await loadConversation(org.id, id)
+    const [who] = await db
+      .select(recipientContext)
+      .from(contacts)
+      .innerJoin(conversations, eq(conversations.contactId, contacts.id))
+      .where(and(eq(contacts.id, current.contact.id), eq(contacts.orgId, org.id)))
+    const rows = await db
+      .select()
+      .from(templates)
+      .where(and(eq(templates.orgId, org.id), eq(templates.status, 'approved')))
+      .orderBy(asc(templates.purpose), asc(templates.name))
+    res.json({
+      templates: rows.map((t) => {
+        const parts = partsOf(t.components)
+        const n = variableCount(parts.body)
+        return {
+          id: t.id,
+          name: t.name,
+          language: t.language,
+          category: t.category,
+          purpose: t.purpose,
+          body: parts.body,
+          variables: t.variables,
+          suggested: Array.from({ length: n }, (_, i) => {
+            const v = t.variables[i] ?? ''
+            if (['contact_name', 'name', 'student_name'].includes(v)) return who?.name ?? ''
+            if (v === 'course') return who?.course ?? ''
+            if (v === 'batch') return who?.batch ?? ''
+            return ''
+          }),
+        }
+      }),
+    })
+  })
+
+  /** Sends an approved template (any time: templates don't need the window). */
+  router.post('/conversations/:id/template', async (req, res) => {
+    const org = orgOf(req)
+    const user = userOf(req)
+    const { id } = uuidParam.parse(req.params)
+    const body = z
+      .object({
+        templateId: z.uuid(),
+        values: z.array(z.string().trim().min(1, 'Fill in every blank').max(200)).max(20),
+      })
+      .parse(req.body)
+    const current = await loadConversation(org.id, id)
+    const [t] = await db
+      .select()
+      .from(templates)
+      .where(and(eq(templates.id, body.templateId), eq(templates.orgId, org.id)))
+    if (!t) throw new AppError('NOT_FOUND', 'Template not found')
+    if (t.status !== 'approved')
+      throw new AppError('TEMPLATE_NOT_APPROVED', 'Only an approved template can be sent')
+    if (body.values.length !== variableCount(partsOf(t.components).body))
+      throw new AppError('VALIDATION', 'Fill in every blank', { reason: 'variables_missing' })
+    const now = deps.now()
+    const message = await queueOutbound(
+      { db, outboundQueue: deps.queues.outbound },
+      {
+        orgId: org.id,
+        conversationId: id,
+        content: campaignContent(t, body.values.map(templateParam)),
+        sentBy: 'user',
+        sentByUserId: user.id,
+        now,
+      },
+    )
+    res.status(201).json(await afterStaffSend(req, id, current, message.id, now))
   })
 
   /** "Chat khud sambhalein": staff take over; the bot stays quiet for 2h of staff silence. */

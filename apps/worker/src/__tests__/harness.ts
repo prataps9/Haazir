@@ -24,6 +24,7 @@ import type { Deps } from '../deps'
 export const GRAPH = 'https://graph.test'
 export const PHONE_NUMBER_ID = '106540352242922'
 export const TOKEN = 'EAAG-test-token'
+export const WABA_ID = '102290129340398'
 const KEY = Buffer.alloc(32, 9).toString('base64')
 
 /** Meta's side of the conversation, as MSW handlers that record what we sent. */
@@ -34,7 +35,12 @@ export function mockGraph() {
   let failWith: { status: number; error: Record<string, unknown> } | null = null
 
   const uploads: { filename: string; type: string }[] = []
+  /** Templates as Meta holds them on the test WABA (GET /message_templates). */
+  const templates: Record<string, unknown>[] = []
   const server = setupServer(
+    http.get(`${GRAPH}/v26.0/${WABA_ID}/message_templates`, () =>
+      HttpResponse.json({ data: templates, paging: {} }),
+    ),
     http.post(`${GRAPH}/v26.0/${PHONE_NUMBER_ID}/media`, async ({ request }) => {
       const form = await request.formData()
       const file = form.get('file') as File
@@ -85,6 +91,7 @@ export function mockGraph() {
     sent,
     reads,
     uploads,
+    templates,
     failNextSends(status: number, error: Record<string, unknown>) {
       failWith = { status, error }
     },
@@ -92,6 +99,7 @@ export function mockGraph() {
       sent.length = 0
       reads.length = 0
       uploads.length = 0
+      templates.length = 0
       failWith = null
       next = 1
     },
@@ -173,7 +181,7 @@ export async function createHarness() {
     .insert(whatsappAccounts)
     .values({
       orgId: org.id,
-      wabaId: '102290129340398',
+      wabaId: WABA_ID,
       phoneNumberId: PHONE_NUMBER_ID,
       accessTokenEnc: encryptSecret(TOKEN, KEY),
     })
@@ -401,6 +409,7 @@ export function statusUpdate(
   waMessageId: string,
   status: 'sent' | 'delivered' | 'read' | 'failed',
   errors?: Record<string, unknown>[],
+  opts: { recipient?: string; pricing?: { billable: boolean; category: string } } = {},
 ) {
   return envelope({
     statuses: [
@@ -408,8 +417,11 @@ export function statusUpdate(
         id: waMessageId,
         status,
         timestamp: '1790407300',
-        recipient_id: '919812345678',
-        pricing: { billable: false, pricing_model: 'PMP', category: 'service' },
+        recipient_id: opts.recipient ?? '919812345678',
+        pricing: {
+          pricing_model: 'PMP',
+          ...(opts.pricing ?? { billable: false, category: 'service' }),
+        },
         ...(errors ? { errors } : {}),
       },
     ],

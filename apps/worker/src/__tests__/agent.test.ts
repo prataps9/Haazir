@@ -280,7 +280,7 @@ describe('the daily fee sweep', () => {
     expect(first.sent).toBe(1)
     for (const job of h.queues.outbound.jobs.splice(0)) await processOutbound(h.deps, job.data)
     expect(lastSent().text!.body).toBe(
-      'Anil Kumar ki Web Development fees ₹6,000 ki kisht 29 Sep ko due hai. Pay karne ke liye: https://rzp.io/i/1',
+      'Namaste! Anil Kumar ki Web Development fees ₹6,000 ki kisht 29 Sep ko due hai. Pay karne ke liye: https://rzp.io/i/1 . Dhanyavaad.',
     )
     expect(links).toEqual([{ amount: 6_000_00, reference: inst.id }])
 

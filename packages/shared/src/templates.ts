@@ -121,8 +121,8 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     category: 'marketing',
     variables: ['batch', 'date'],
     body: {
-      hinglish: 'Naya batch {{1}} {{2}} se shuru. Seats limited. Details ke liye reply karein.',
-      hi: 'नया बैच {{1}} {{2}} से शुरू। सीटें सीमित। जानकारी के लिए जवाब दें।',
+      hinglish: 'Naya batch {{1}}, {{2}} se shuru. Seats limited. Details ke liye reply karein.',
+      hi: 'नया बैच {{1}}, {{2}} से शुरू। सीटें सीमित। जानकारी के लिए जवाब दें।',
       en: 'New batch {{1}} starts {{2}}. Limited seats. Reply for details.',
     },
   },

@@ -174,3 +174,77 @@ describe('GraphClient.uploadMedia', () => {
     ).rejects.toThrow('Upload the file first')
   })
 })
+
+describe('GraphClient templates', () => {
+  it('submits with Meta’s upper-case category and returns the id and status', async () => {
+    let body: unknown
+    server.use(
+      http.post(`${BASE}/v26.0/2001/message_templates`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ id: '1689', status: 'PENDING', category: 'UTILITY' })
+      }),
+    )
+    const created = await client.createTemplate('2001', {
+      name: 'fee_due',
+      language: 'hi',
+      category: 'utility',
+      components: [{ type: 'BODY', text: 'Aaj fees due hai.' }],
+    })
+    expect(created).toEqual({ id: '1689', status: 'PENDING', category: 'UTILITY' })
+    expect(body).toMatchObject({ name: 'fee_due', language: 'hi', category: 'UTILITY' })
+  })
+
+  it('follows pages when listing', async () => {
+    server.use(
+      http.get(`${BASE}/v26.0/2001/message_templates`, ({ request }) => {
+        const after = new URL(request.url).searchParams.get('after')
+        return HttpResponse.json(
+          after
+            ? {
+                data: [
+                  {
+                    id: '2',
+                    name: 'b',
+                    language: 'en',
+                    status: 'REJECTED',
+                    category: 'MARKETING',
+                    rejected_reason: 'PROMOTIONAL',
+                  },
+                ],
+              }
+            : {
+                data: [
+                  {
+                    id: '1',
+                    name: 'a',
+                    language: 'hi',
+                    status: 'APPROVED',
+                    category: 'UTILITY',
+                    rejected_reason: 'NONE',
+                  },
+                ],
+                paging: { cursors: { after: 'c1' }, next: 'https://graph.test/next' },
+              },
+        )
+      }),
+    )
+    const list = await client.listTemplates('2001')
+    expect(list.map((t) => [t.id, t.status, t.rejectedReason])).toEqual([
+      ['1', 'APPROVED', undefined],
+      ['2', 'REJECTED', 'PROMOTIONAL'],
+    ])
+  })
+
+  it('deletes by name and id', async () => {
+    let url = ''
+    server.use(
+      http.delete(`${BASE}/v26.0/2001/message_templates`, ({ request }) => {
+        url = request.url
+        return HttpResponse.json({ success: true })
+      }),
+    )
+    await client.deleteTemplate('2001', 'diwali_offer', '1689')
+    expect(new URL(url).searchParams.get('name')).toBe('diwali_offer')
+    expect(new URL(url).searchParams.get('hsm_id')).toBe('1689')
+  })
+})
