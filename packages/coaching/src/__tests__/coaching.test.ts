@@ -152,14 +152,15 @@ describe('demo booking', () => {
     )
   })
 
-  it('reminds 3 hours before (or now, if booked later than that) and follows up a day after', () => {
+  it('reminds 3 hours before (not at all if booked closer than that) and follows up a day after', () => {
     const startsAt = new Date('2026-10-22T02:30:00Z') // 8:00 AM IST
     expect(demoReminderTimes(startsAt, new Date('2026-10-21T10:00:00Z'))).toEqual({
       reminder: new Date('2026-10-21T23:30:00Z'),
       followup: new Date('2026-10-23T02:30:00Z'),
     })
     const late = new Date('2026-10-22T01:00:00Z')
-    expect(demoReminderTimes(startsAt, late).reminder).toEqual(late)
+    // Booked at 6:30 AM for 8:00: the confirmation was the reminder.
+    expect(demoReminderTimes(startsAt, late).reminder).toBeNull()
     expect(demoReminderTimes(startsAt, new Date('2026-10-22T03:00:00Z')).reminder).toBeNull()
   })
 

@@ -95,8 +95,8 @@ export const envSchema = z
     RAZORPAY_KEY_SECRET: optional(),
     RAZORPAY_WEBHOOK_SECRET: optional(),
 
-    // Testing only (CI's end-to-end campaign, a late-night demo): campaigns
-    // ignore the 9 PM to 8 AM quiet hours. Refused in production.
+    // Testing only (CI's end-to-end runs, a late-night demo): campaigns and
+    // reminders ignore the 9 PM to 8 AM quiet hours. Refused in production.
     QUIET_HOURS_OFF: z
       .enum(['true', 'false'])
       .default('false')

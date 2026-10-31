@@ -41,7 +41,7 @@ test steps, tests added and known gaps (§23), then stop.
 
 - Automated messages (reminders, receipts, links) go through `sendAutomation` (`packages/messaging`): it picks free text or an approved template by the 24h window, holds them in quiet hours (9 PM–8 AM IST) and skips opted-out contacts.
 - Campaigns: the opted-in rule lives in `audienceWhere` (`packages/messaging/src/campaigns.ts`); never build an audience query elsewhere. Rates are centipaise (`meta_rates`); total once, then round to paise. Raw SQL subqueries must qualify outer columns (`"contacts"."id"`): Drizzle leaves them bare in single-table selects, and a bare `id` binds to the subquery's table.
-- `QUIET_HOURS_OFF` is for CI and demos only (env.ts refuses it in production).
+- `QUIET_HOURS_OFF` (campaigns and reminders ignore 9 PM to 8 AM) is for CI and demos only; env.ts refuses it in production. Anything time-of-day dependent needs a test at night too: CI also runs on a schedule.
 - Razorpay runs on each institute's own keys (encrypted in `org_payment_accounts`). `RAZORPAY_BASE_URL` points at the mock only in local and CI runs.
 
 ## Checks

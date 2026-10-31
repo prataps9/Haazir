@@ -64,7 +64,7 @@ export interface Deps {
   encryptionKey?: string
   /** Razorpay client for an institute's keys (a fake in tests). */
   razorpay?: RazorpayFactory
-  /** Testing only (QUIET_HOURS_OFF): campaigns don't wait for 8 AM. */
+  /** Testing only (QUIET_HOURS_OFF): campaigns and reminders don't wait for 8 AM. */
   quietHoursOff?: boolean
   log: Log
   now(): Date

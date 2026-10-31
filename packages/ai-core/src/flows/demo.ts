@@ -1,5 +1,5 @@
 import type { batches, courses } from '@haazir/db'
-import { addDays, defaultTemplate, fillTemplate } from '@haazir/shared'
+import { addDays, defaultTemplate, DEMO_REMINDER_BEFORE_MS, fillTemplate } from '@haazir/shared'
 import type { AgentAction } from '../actions'
 import { formatTime } from '../facts'
 import type { ReplyLanguage } from '../language'
@@ -312,8 +312,14 @@ function book(state: DemoState, ctx: FlowContext): FlowResult {
     formatTime(batch.startTime),
     ctx.address ?? ctx.orgName,
   ])
+  // "We'll remind you 3 hours before", only when there are 3 hours to go.
+  const startsAt = new Date(`${state.date}T${batch.startTime.slice(0, 5)}:00+05:30`)
+  const willRemind = startsAt.getTime() - ctx.now.getTime() > DEMO_REMINDER_BEFORE_MS
   return {
-    content: { kind: 'text', body: `${confirmation}\n${FLOW.booked[ctx.lang]}` },
+    content: {
+      kind: 'text',
+      body: willRemind ? `${confirmation}\n${FLOW.booked[ctx.lang]}` : confirmation,
+    },
     state: null,
     actions: [
       {

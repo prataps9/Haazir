@@ -44,7 +44,7 @@ async function demoReminder(deps: Deps, orgId: string, bookingId: string) {
     return { sent: false, reason: 'not_needed' }
   }
   // A 7 AM class reminded at 4 AM wakes people: wait for 8 AM if the class is still ahead then.
-  const later = quietUntil(now)
+  const later = deps.quietHoursOff ? null : quietUntil(now)
   if (later && later.getTime() < row.booking.startsAt.getTime() - 30 * 60_000) {
     await deps.queues.reminder.add(
       'demo_reminder',
@@ -96,6 +96,7 @@ async function demoFollowup(deps: Deps, orgId: string, bookingId: string) {
       contactId: row.booking.contactId,
       purpose: 'followup',
       values: [row.booking.studentName],
+      urgent: deps.quietHoursOff,
       now,
     },
   )
@@ -167,7 +168,14 @@ export async function feeSweep(deps: Deps, onlyOrgId?: string) {
           : [student.name, amount, url]
       const result = await sendAutomation(
         { db: deps.db, outboundQueue: deps.queues.outbound },
-        { orgId: org.id, contactId: student.contactId, purpose: PURPOSE[kind], values, now },
+        {
+          orgId: org.id,
+          contactId: student.contactId,
+          purpose: PURPOSE[kind],
+          values,
+          urgent: deps.quietHoursOff,
+          now,
+        },
       )
       if (result.sent) {
         await markReminderSent(deps.db, inst.id, kind, now)

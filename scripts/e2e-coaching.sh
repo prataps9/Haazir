@@ -13,6 +13,8 @@ PIDS=()
 trap cleanup EXIT
 
 export RAZORPAY_BASE_URL=http://localhost:4010
+# CI may run at any hour; reminders otherwise wait out 9 PM to 8 AM IST.
+export QUIET_HOURS_OFF=true
 pnpm whatsapp:connect
 pnpm whatsapp:mock > /tmp/mock-coaching.log 2>&1 & PIDS+=($!)
 node apps/api/dist/index.js > /tmp/api-coaching.log 2>&1 & PIDS+=($!)

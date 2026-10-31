@@ -39,6 +39,11 @@ export const LOST_REASONS = [
 export type LostReason = (typeof LOST_REASONS)[number]
 
 export const DEMO_STATUSES = ['booked', 'reminded', 'attended', 'no_show', 'cancelled'] as const
+/**
+ * Demo reminders go 3 hours before the class (spec §13). A demo booked closer
+ * than that gets no reminder: the confirmation just sent says when it is.
+ */
+export const DEMO_REMINDER_BEFORE_MS = 3 * 60 * 60 * 1000
 export type DemoStatus = (typeof DEMO_STATUSES)[number]
 
 export const STUDENT_STATUSES = ['active', 'completed', 'dropped'] as const

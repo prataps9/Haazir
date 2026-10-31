@@ -1,11 +1,11 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { demoBookings, leads, type AnyDatabase } from '@haazir/db'
-import type { DemoStatus } from '@haazir/shared'
+import { DEMO_REMINDER_BEFORE_MS, type DemoStatus } from '@haazir/shared'
 import { ensureLead, moveLead, type Actor } from './leads'
 
 export type DemoBooking = typeof demoBookings.$inferSelect
 
-export const REMINDER_BEFORE_MS = 3 * 60 * 60 * 1000
+export const REMINDER_BEFORE_MS = DEMO_REMINDER_BEFORE_MS
 export const FOLLOWUP_AFTER_MS = 24 * 60 * 60 * 1000
 
 /** "2026-10-22" + "08:00:00" in IST → the UTC instant the class starts. */
@@ -99,7 +99,8 @@ export function demoReminderTimes(startsAt: Date, now: Date) {
   const remindAt = new Date(startsAt.getTime() - REMINDER_BEFORE_MS)
   const followupAt = new Date(startsAt.getTime() + FOLLOWUP_AFTER_MS)
   return {
-    reminder: startsAt > now ? (remindAt > now ? remindAt : now) : null,
+    // Booked within 3 hours of the class: the confirmation was the reminder.
+    reminder: remindAt > now ? remindAt : null,
     followup: followupAt > now ? followupAt : null,
   }
 }

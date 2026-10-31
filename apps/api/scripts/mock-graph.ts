@@ -15,7 +15,9 @@
  * Meta's pricing; a number ending in 99 fails with Meta's marketing-limit
  * error. Never used in production.
  */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { dirname, join } from 'node:path'
 import { loadEnv } from '@haazir/shared/env'
 import { signBody } from '@haazir/whatsapp'
 
@@ -32,7 +34,18 @@ interface MockTemplate {
   components: unknown[]
   createdAt: number
 }
-const templateStore = new Map<string, MockTemplate>()
+// Kept on disk, like Meta keeps them: a restarted mock still knows each
+// template's category (it decides what a send costs).
+const STORE_FILE = join(process.cwd(), '.data', 'mock-templates.json')
+const templateStore = new Map<string, MockTemplate>(
+  existsSync(STORE_FILE)
+    ? (JSON.parse(readFileSync(STORE_FILE, 'utf8')) as MockTemplate[]).map((t) => [t.id, t])
+    : [],
+)
+const saveTemplates = () => {
+  mkdirSync(dirname(STORE_FILE), { recursive: true })
+  writeFileSync(STORE_FILE, JSON.stringify([...templateStore.values()], null, 2))
+}
 const categoryOf = (name: string) =>
   [...templateStore.values()].find((t) => t.name === name)?.category.toLowerCase() ?? 'utility'
 
@@ -50,6 +63,7 @@ async function postWebhook(body: string) {
 /** Meta's review, a second after the submission: approved. */
 async function approve(wabaId: string, t: MockTemplate) {
   t.status = 'APPROVED'
+  saveTemplates()
   const res = await postWebhook(
     JSON.stringify({
       object: 'whatsapp_business_account',
@@ -156,6 +170,7 @@ createServer((req, res) => {
           createdAt: Date.now(),
         }
         templateStore.set(t.id, t)
+        saveTemplates()
         console.log(`→ template ${t.name} (${t.language}, ${t.category}) submitted`)
         setTimeout(() => void approve(wabaId, t), 1000)
         return res.end(JSON.stringify({ id: t.id, status: 'PENDING', category: t.category }))
@@ -163,6 +178,7 @@ createServer((req, res) => {
       if (req.method === 'DELETE') {
         const id = new URLSearchParams(tpl[3]?.slice(1)).get('hsm_id')
         if (id) templateStore.delete(id)
+        saveTemplates()
         return res.end(JSON.stringify({ success: true }))
       }
       return res.end(
@@ -183,6 +199,7 @@ createServer((req, res) => {
     if (req.method === 'POST' && edit) {
       const t = templateStore.get(edit[2]!)
       if (t) Object.assign(t, JSON.parse(raw || '{}'), { status: 'PENDING' })
+      saveTemplates()
       return res.end(JSON.stringify({ success: true }))
     }
     const media = req.url?.match(/^\/(v\d+\.\d)\/([^/]+)\/media$/)

@@ -173,8 +173,12 @@ let reply = await say('Free demo', { id: 'menu_demo' })
 const rscit = rows(reply.content).find((r) => r.title === 'RS-CIT')
 check(rscit, 'the bot lists the courses that have demo slots')
 reply = await say('RS-CIT', { id: rscit.id, list: true })
-const day = rows(reply.content)[0]
-check(day && day.id.startsWith('demo_day:'), `it offers days (${rows(reply.content).length})`)
+// Not today: a class within 3 hours gets no reminder (the confirmation is
+// it), and this run checks the reminder. Tomorrow or later always has one.
+const todayIst = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10)
+const days = rows(reply.content)
+const day = days.find((r) => r.id.startsWith('demo_day:') && r.id.slice(9) > todayIst)
+check(day, `it offers days (${days.length}); booking one after today`)
 reply = await say(day.title, { id: day.id, list: true })
 if (rows(reply.content)[0]?.id.startsWith('demo_slot:')) {
   const slot = rows(reply.content)[0]!

@@ -93,6 +93,34 @@ describe('demo flow (pure)', () => {
       }),
     ])
     expect(done.content.body).toContain('Station Road')
+    expect(done.content.body).toContain('3 ghante pehle yaad dila denge')
+  })
+
+  it('booked within 3 hours of the class: confirms without promising a reminder', async () => {
+    // Monday 3:00 PM IST, booking today's 5 PM class.
+    const late = await loadFlowContext(
+      f.db,
+      f.org,
+      new Date('2026-09-28T09:30:00Z'),
+      'hinglish',
+      'Anil',
+    )
+    const done = continueDemo(
+      {
+        step: 'confirm',
+        courseId: rscit().id,
+        date: TODAY,
+        batchId: late.batches.find(
+          (b) => b.courseId === rscit().id && b.startTime.startsWith('17'),
+        )!.id,
+        studentName: 'Ravi Meena',
+        at: new Date().toISOString(),
+      },
+      { id: 'demo_yes', text: 'Haan' },
+      late,
+    )!
+    expect(done.content.body).toContain('book ho gayi')
+    expect(done.content.body).not.toContain('yaad dila')
   })
 
   it('skips questions with one answer, and fills in what the person already said', () => {
