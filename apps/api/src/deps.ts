@@ -49,5 +49,7 @@ export interface AppDeps extends HealthDeps {
   /** Razorpay client for an institute's own keys (a fake in tests). */
   razorpay?: RazorpayFactory
   vapidPublicKey?: string
+  /** Testing only (QUIET_HOURS_OFF): a campaign scheduled at night isn't moved to 8 AM. */
+  quietHoursOff?: boolean
   now(): Date
 }

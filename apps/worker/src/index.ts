@@ -114,6 +114,7 @@ const deps: Deps = {
   stt,
   events,
   push,
+  quietHoursOff: env.QUIET_HOURS_OFF,
   log: logger,
   now: () => new Date(),
 }
@@ -219,6 +220,8 @@ for (const worker of workers) {
 }
 
 logger.info({ queues: workers.map((w) => w.name) }, 'worker ready')
+if (env.QUIET_HOURS_OFF)
+  logger.warn('QUIET_HOURS_OFF: campaigns may go out at night (testing only)')
 
 // Graceful shutdown: let running jobs finish (BullMQ waits for them), then
 // release Redis and Postgres. Anything unfinished is retried by the next worker.

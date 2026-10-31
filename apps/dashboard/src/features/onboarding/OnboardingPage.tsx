@@ -21,6 +21,8 @@ import { ApiError, patch, post } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { crm, useCourses, useCrmMutation, useOrg, type Course, type Org } from '@/lib/crm'
 import { errorText } from '@/lib/errors'
+import { growth, useGrowthMutation, useTemplates } from '@/lib/growth'
+import { growthError, languageLabel, TEMPLATE_TONE } from '@/features/templates/templateUi'
 import { formatPaise } from '@/lib/format'
 import { useMe } from '@/lib/session'
 import { toast } from '@/lib/toast'
@@ -525,21 +527,77 @@ function TestStep() {
   )
 }
 
+/**
+ * The reminder and receipt messages (spec §13), seeded as drafts in Hindi,
+ * Hinglish and English: one tap sends them all to Meta for approval.
+ */
 function TemplatesStep() {
   const { t } = useTranslation()
+  const templates = useTemplates()
+  const submitAll = useGrowthMutation(growth.submitAll)
+  const sync = useGrowthMutation(growth.syncTemplates)
+  const list = templates.data?.templates ?? []
+  const drafts = list.filter((x) => x.status === 'draft').length
   return (
     <div className="flex flex-col gap-3">
       <p className="text-body text-ink-muted">{t('onboarding.templatesBody')}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="md"
+          disabled={!drafts || !templates.data?.hasNumber}
+          loading={submitAll.isPending}
+          onClick={() =>
+            submitAll.mutate(undefined, {
+              onSuccess: (r) =>
+                toast({
+                  title: t('templates.submittedAll', { count: r.submitted }),
+                  tone: r.failed.length ? 'danger' : undefined,
+                  body: r.failed.length
+                    ? t('templates.someFailed', { names: r.failed.map((f) => f.name).join(', ') })
+                    : undefined,
+                }),
+              onError: (err) => toast({ title: growthError(err, t), tone: 'danger' }),
+            })
+          }
+        >
+          {t('templates.submitAll', { count: drafts })}
+        </Button>
+        <Button
+          size="md"
+          variant="secondary"
+          disabled={!templates.data?.hasNumber}
+          loading={sync.isPending}
+          onClick={() =>
+            sync.mutate(undefined, {
+              onError: (err) => toast({ title: growthError(err, t), tone: 'danger' }),
+            })
+          }
+        >
+          {t('templates.sync')}
+        </Button>
+      </div>
+      {templates.data && !templates.data.hasNumber && (
+        <p className="text-small text-ink-muted">{t('templates.noNumber')}</p>
+      )}
       <ul className="divide-y divide-rule rounded-card border border-rule bg-surface">
-        {DEFAULT_TEMPLATES.map((tpl) => (
-          <li key={tpl.purpose} className="flex flex-col gap-1 p-4">
-            <span className="flex items-center justify-between gap-2">
-              <code className="text-small text-ink">{tpl.purpose}</code>
-              <StatusPill tone="attention">{t('onboarding.pending')}</StatusPill>
-            </span>
-            <span className="text-small text-ink-muted">{tpl.body.hinglish}</span>
-          </li>
-        ))}
+        {DEFAULT_TEMPLATES.map((tpl) => {
+          const variants = list.filter((x) => x.purpose === tpl.purpose)
+          return (
+            <li key={tpl.purpose} className="flex flex-col gap-1.5 p-4">
+              <span className="text-body font-semibold text-ink">
+                {t(`templates.purposes.${tpl.purpose}`)}
+              </span>
+              <span className="text-small text-ink-muted">{tpl.body.hinglish}</span>
+              <span className="flex flex-wrap gap-1.5">
+                {variants.map((x) => (
+                  <StatusPill key={x.id} tone={TEMPLATE_TONE[x.status]}>
+                    {languageLabel(t, x.name, x.language)}: {t(`templates.status.${x.status}`)}
+                  </StatusPill>
+                ))}
+              </span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
@@ -548,6 +606,7 @@ function TemplatesStep() {
 function LiveStep({ org }: { org: Org }) {
   const { t } = useTranslation()
   const courses = useCourses()
+  const templates = useTemplates()
   const qc = useQueryClient()
   const live = useMutation({
     mutationFn: async () => {
@@ -562,7 +621,13 @@ function LiveStep({ org }: { org: Org }) {
   const checks: [string, boolean, boolean?][] = [
     [t('onboarding.checkWhatsapp'), org.whatsapp?.status === 'connected'],
     [t('onboarding.checkCourse'), !!courses.data?.some((c) => c.active && c.feeTotalPaise > 0)],
-    [t('onboarding.checkTemplates'), false, true],
+    [
+      t('onboarding.checkTemplates'),
+      DEFAULT_TEMPLATES.every((d) =>
+        templates.data?.templates.some((x) => x.purpose === d.purpose && x.status === 'approved'),
+      ),
+      true,
+    ],
     [t('onboarding.checkStaff'), false, true],
   ]
   if (org.status === 'active') {

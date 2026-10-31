@@ -10,7 +10,7 @@ import { cn } from '@/lib/cn'
 import { useLogout, useMe } from '@/lib/session'
 import { useSession } from '@/lib/session-store'
 import { useOrgSocket } from '@/lib/socket'
-import { MORE_NAV, PRIMARY_NAV, type NavItem } from './nav'
+import { MORE_NAV, navFor, PRIMARY_NAV, type NavItem } from './nav'
 
 /**
  * Phones and tablets (< 1024px): top bar + five bottom tabs, with "Aur" opening
@@ -133,7 +133,7 @@ const sep =
 
 function Sidebar() {
   const { t } = useTranslation()
-  const { me } = useMe()
+  const { me, org } = useMe()
   return (
     <aside className="sticky top-0 hidden h-dvh flex-col border-r border-rule bg-surface lg:flex">
       <div className="flex h-16 items-center justify-between gap-1 pr-2 pl-5">
@@ -141,7 +141,7 @@ function Sidebar() {
         <Bell />
       </div>
       <nav aria-label={t('nav.main')} className="flex-1 overflow-y-auto pb-4">
-        {[PRIMARY_NAV, ...MORE_NAV].map((group, i) => (
+        {navFor(org?.role, [PRIMARY_NAV, ...MORE_NAV]).map((group, i) => (
           <ul key={i} className={cn('py-1', i > 0 && sep)}>
             {group.map((item) => (
               <li key={item.to}>
@@ -195,7 +195,7 @@ function SidebarLink({ item }: { item: NavItem }) {
 
 function BottomTabs() {
   const { t } = useTranslation()
-  const { me } = useMe()
+  const { me, org } = useMe()
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
   const inMore = [...MORE_NAV.flat(), { to: '/admin' }].some((item) => pathname.startsWith(item.to))
@@ -240,7 +240,7 @@ function BottomTabs() {
       >
         <nav aria-label={t('shell.moreTitle')}>
           {[
-            ...MORE_NAV,
+            ...navFor(org?.role, MORE_NAV),
             ...(me?.user.isSuperAdmin
               ? [[{ to: '/admin', key: 'admin', icon: ShieldCheckIcon }]]
               : []),

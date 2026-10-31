@@ -66,7 +66,9 @@ const TIER_LIMITS: Record<string, number> = {
  * Campaigns (spec §16.8): draft, live audience count, preview for one real
  * person, cost estimate, send now or schedule, cancel, results.
  */
-export function campaignsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'events' | 'now'>) {
+export function campaignsRouter(
+  deps: Pick<AppDeps, 'db' | 'queues' | 'events' | 'now' | 'quietHoursOff'>,
+) {
   const { db } = deps
   const router = Router()
   // Spec §19: agents chat, follow up leads and take fees; campaigns are for owners and admins.
@@ -288,7 +290,7 @@ export function campaignsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'events' |
     })
     // Campaigns don't go out at night (9 PM to 8 AM IST): say when it really starts.
     const asked = at && at > now ? at : now
-    const when = quietUntil(asked) ?? asked
+    const when = (deps.quietHoursOff ? null : quietUntil(asked)) ?? asked
 
     const [row] = await db
       .update(campaigns)

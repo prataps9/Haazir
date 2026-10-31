@@ -141,7 +141,7 @@ export function useMarkRead(conversationId: string | undefined) {
 export function useUpdateContact(contactId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: Partial<Pick<Contact, 'name' | 'tags' | 'notes'>>) =>
+    mutationFn: (body: Partial<Pick<Contact, 'name' | 'tags' | 'notes'>> & { optIn?: boolean }) =>
       patch<Contact>(`/api/v1/contacts/${contactId}`, body),
     onSuccess: (contact) => {
       qc.setQueryData(['contact', contactId], contact)

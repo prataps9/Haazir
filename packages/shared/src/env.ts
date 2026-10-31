@@ -95,6 +95,13 @@ export const envSchema = z
     RAZORPAY_KEY_SECRET: optional(),
     RAZORPAY_WEBHOOK_SECRET: optional(),
 
+    // Testing only (CI's end-to-end campaign, a late-night demo): campaigns
+    // ignore the 9 PM to 8 AM quiet hours. Refused in production.
+    QUIET_HOURS_OFF: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+
     RESEND_API_KEY: optional(),
     VAPID_PUBLIC_KEY: optional(),
     VAPID_PRIVATE_KEY: optional(),
@@ -122,6 +129,13 @@ export const envSchema = z
     // Secrets that protect stored data are mandatory in production, whatever
     // phase we're in: shipping without them is not recoverable later.
     if (env.NODE_ENV !== 'production') return
+    if (env.QUIET_HOURS_OFF) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['QUIET_HOURS_OFF'],
+        message: 'is for testing only; people must not get campaigns at night',
+      })
+    }
     for (const key of ['ENCRYPTION_KEY', 'BETTER_AUTH_SECRET'] as const) {
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: 'is required in production' })

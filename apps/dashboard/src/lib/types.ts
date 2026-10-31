@@ -67,6 +67,9 @@ export interface Contact {
   tags: string[]
   notes: string | null
   optInStatus: 'opted_in' | 'opted_out' | 'unknown'
+  /** Where the yes came from: whatsapp_inbound, admission, staff, team… (spec §19). */
+  optInSource: string | null
+  optInAt: string | null
   optedOutAt: string | null
   lastInboundAt: string | null
   createdAt: string

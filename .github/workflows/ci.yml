@@ -84,6 +84,8 @@ jobs:
         run: ./scripts/e2e-whatsapp.sh
       - name: Coaching journey end to end (enquiry to receipt; mock Meta and Razorpay)
         run: ./scripts/e2e-coaching.sh
+      - name: Campaign end to end (50 opted-in, throttled, estimate vs actual; mock Meta)
+        run: ./scripts/e2e-campaign.sh
 
   evals:
     # The 73 coaching conversations against real models (spec §11.7). Runs

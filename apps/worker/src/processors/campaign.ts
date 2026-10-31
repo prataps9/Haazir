@@ -35,7 +35,7 @@ export async function processCampaign(deps: Deps, job: CampaignJob) {
   if (!campaign || (campaign.status !== 'scheduled' && campaign.status !== 'sending'))
     return { sent: 0, reason: 'not_sending' }
 
-  const morning = quietUntil(now)
+  const morning = deps.quietHoursOff ? null : quietUntil(now)
   if (morning) {
     const delay = morning.getTime() - now.getTime()
     await deps.queues.campaign.add('batch', job, {

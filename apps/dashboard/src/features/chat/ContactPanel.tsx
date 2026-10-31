@@ -4,9 +4,12 @@ import { Avatar } from '@/components/Avatar'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Skeleton } from '@/components/Skeleton'
-import { StatusPill } from '@/components/StatusPill'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { StatusPill, type StatusTone } from '@/components/StatusPill'
 import { LeadPanel } from './LeadPanel'
 import { Textarea } from '@/components/Textarea'
+import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errors'
 import { usePreferences } from '@/lib/preferences'
 import { dayLabel } from '@/lib/time'
 import { toast } from '@/lib/toast'
@@ -98,9 +101,30 @@ export function ContactPanel({ contactId }: { contactId: string }) {
         <dd className="text-ink">{dayLabel(contact.createdAt, lang)}</dd>
       </dl>
 
-      <StatusPill tone={optTone} className="self-start">
-        {t(`contact.optIn.${contact.optInStatus}`)}
-      </StatusPill>
+      <Consent
+        status={contact.optInStatus}
+        source={contact.optInSource}
+        at={contact.optInAt}
+        tone={optTone}
+        pending={update.isPending}
+        onRecord={(optIn) =>
+          update.mutate(
+            { optIn },
+            {
+              onSuccess: () => toast({ title: t('contact.consentSaved') }),
+              onError: (err) =>
+                toast({
+                  title:
+                    err instanceof ApiError &&
+                    (err.details as { reason?: string } | undefined)?.reason === 'opted_out'
+                      ? t('contact.consentStop')
+                      : errorText(err, t('common.failed')),
+                  tone: 'danger',
+                }),
+            },
+          )
+        }
+      />
 
       <LeadPanel contactId={contact.id} waId={contact.waId} />
 
@@ -131,6 +155,70 @@ export function ContactPanel({ contactId }: { contactId: string }) {
       >
         {t('contact.save')}
       </Button>
+    </div>
+  )
+}
+
+/**
+ * Consent for updates and offers (spec §19: a record with source and time).
+ * Campaigns only ever go to a "yes"; a STOP can only be undone by the person.
+ */
+function Consent({
+  status,
+  source,
+  at,
+  tone,
+  pending,
+  onRecord,
+}: {
+  status: 'opted_in' | 'opted_out' | 'unknown'
+  source: string | null
+  at: string | null
+  tone: StatusTone
+  pending: boolean
+  onRecord(optIn: boolean): void
+}) {
+  const { t } = useTranslation()
+  const lang = usePreferences((s) => s.language)
+  const [asking, setAsking] = useState(false)
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <StatusPill tone={tone}>{t(`contact.optIn.${status}`)}</StatusPill>
+      {status === 'opted_in' && at && (
+        <p className="text-small text-ink-muted">
+          {t('contact.consentSince', {
+            when: dayLabel(at, lang),
+            source: t(`contact.consentSources.${source ?? 'other'}`, {
+              defaultValue: t('contact.consentSources.other'),
+            }),
+          })}
+        </p>
+      )}
+      {status === 'opted_out' && (
+        <p className="text-small text-ink-muted">{t('contact.consentStop')}</p>
+      )}
+      {status === 'unknown' && (
+        <Button size="md" variant="secondary" loading={pending} onClick={() => setAsking(true)}>
+          {t('contact.recordYes')}
+        </Button>
+      )}
+      {status === 'opted_in' && source !== 'team' && (
+        <Button size="md" variant="ghost" loading={pending} onClick={() => onRecord(false)}>
+          {t('contact.recordNo')}
+        </Button>
+      )}
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={setAsking}
+        title={t('contact.recordYesTitle')}
+        body={t('contact.recordYesBody')}
+        confirmLabel={t('contact.recordYesConfirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          setAsking(false)
+          onRecord(true)
+        }}
+      />
     </div>
   )
 }

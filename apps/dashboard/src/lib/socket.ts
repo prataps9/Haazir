@@ -86,6 +86,9 @@ export function useOrgSocket(
     const onLead = refresh('leads', 'lead', 'summary', 'conversations')
     const onDemo = refresh('demos', 'summary', 'lead')
     const onFee = refresh('fees', 'student', 'students', 'summary')
+    // Meta reviewed a template; a campaign moved on a batch or finished.
+    const onTemplate = refresh('templates', 'chat-templates', 'campaigns', 'campaign')
+    const onCampaign = refresh('campaigns', 'campaign')
     s.on('message:new', onMessage)
     s.on('message:updated', onMessage)
     s.on('conversation:updated', onConversation)
@@ -94,6 +97,8 @@ export function useOrgSocket(
     s.on('lead:updated', onLead)
     s.on('demo:updated', onDemo)
     s.on('fee:updated', onFee)
+    s.on('template:updated', onTemplate)
+    s.on('campaign:updated', onCampaign)
     return () => {
       s.off('connect', join)
       s.off('message:new', onMessage)
@@ -104,6 +109,8 @@ export function useOrgSocket(
       s.off('lead:updated', onLead)
       s.off('demo:updated', onDemo)
       s.off('fee:updated', onFee)
+      s.off('template:updated', onTemplate)
+      s.off('campaign:updated', onCampaign)
     }
   }, [orgId, qc, labels])
 }

@@ -40,8 +40,10 @@ test steps, tests added and known gaps (§23), then stop.
 - Events to the dashboard go through `OrgEvents.emit` (`packages/messaging`), never straight to Socket.IO; the worker and API are different processes.
 
 - Automated messages (reminders, receipts, links) go through `sendAutomation` (`packages/messaging`): it picks free text or an approved template by the 24h window, holds them in quiet hours (9 PM–8 AM IST) and skips opted-out contacts.
+- Campaigns: the opted-in rule lives in `audienceWhere` (`packages/messaging/src/campaigns.ts`); never build an audience query elsewhere. Rates are centipaise (`meta_rates`); total once, then round to paise. Raw SQL subqueries must qualify outer columns (`"contacts"."id"`): Drizzle leaves them bare in single-table selects, and a bare `id` binds to the subquery's table.
+- `QUIET_HOURS_OFF` is for CI and demos only (env.ts refuses it in production).
 - Razorpay runs on each institute's own keys (encrypted in `org_payment_accounts`). `RAZORPAY_BASE_URL` points at the mock only in local and CI runs.
 
 ## Checks
 
-`pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check`, the same as CI. CI also runs `scripts/e2e-whatsapp.sh` and `scripts/e2e-coaching.sh` on real Postgres and Redis.
+`pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm format:check`, the same as CI. CI also runs `scripts/e2e-whatsapp.sh`, `scripts/e2e-coaching.sh` and `scripts/e2e-campaign.sh` on real Postgres and Redis.

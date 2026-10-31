@@ -58,6 +58,20 @@ describe('parseEnv', () => {
     ).not.toThrow()
   })
 
+  it('keeps quiet hours on, and refuses to turn them off in production', () => {
+    expect(parseEnv(valid).QUIET_HOURS_OFF).toBe(false)
+    expect(parseEnv({ ...valid, QUIET_HOURS_OFF: 'true' }).QUIET_HOURS_OFF).toBe(true)
+    expect(() =>
+      parseEnv({
+        ...valid,
+        NODE_ENV: 'production',
+        ENCRYPTION_KEY: key32,
+        BETTER_AUTH_SECRET: 'x',
+        QUIET_HOURS_OFF: 'true',
+      }),
+    ).toThrow(/QUIET_HOURS_OFF is for testing only/)
+  })
+
   it('rejects unknown enum values', () => {
     expect(() => parseEnv({ ...valid, LLM_PROVIDER: 'cohere' })).toThrow(/LLM_PROVIDER/)
   })

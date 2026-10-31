@@ -13,10 +13,11 @@ import { errorText } from '@/lib/errors'
 import { usePush } from '@/lib/push'
 import { useMe } from '@/lib/session'
 import { toast } from '@/lib/toast'
+import { DailySummaryCard } from './DailySummaryCard'
 import { PaymentsCard } from './PaymentsCard'
 
 /**
- * Settings (§16.15): notifications, the institute's Razorpay, display. The
+ * Settings (§16.15): notifications, the 8 PM summary, the institute's Razorpay, display. The
  * business profile is edited in onboarding; privacy tools arrive in Phase 6.
  */
 export default function SettingsPage() {
@@ -25,6 +26,7 @@ export default function SettingsPage() {
     <Page title={t('nav.settings')}>
       <div className="flex max-w-xl flex-col gap-4">
         <Notifications />
+        <DailySummaryCard />
         <PaymentsCard />
         <Card title={t('settings.display')} description={t('settings.displayBody')}>
           <div className="flex flex-col gap-5">

@@ -32,6 +32,12 @@ Three lines per phase (spec, "How to use this file").
 - Dashboard: Home "Aaj ka hisaab", Leads (Kanban + CSV), Courses & batches, Fees (links, cash, bulk reminders, walk-in admission), onboarding wizard with brochure auto-extract, Razorpay settings, Chat lead panel, tappable playground. Cross-org cases for every new route.
 - 366 automated tests, all mock models. `scripts/e2e-coaching.sh` runs the "done when" journey on real Postgres and Redis in CI: enquiry → demo by taps → reminder → came → admitted → link → paid webhook → receipt → Home.
 
-## Next: Phase 5, templates, campaigns and reports
+## Phase 5: templates, campaigns and reports (built; untested against Meta's real template review)
 
-Needs from Pratap: Razorpay test keys for one institute to try a real payment link and webhook; Meta approval for the seeded reminder templates (names in `packages/shared/src/templates.ts`); an LLM key to run the evals (now 73 cases on `answer-v2`) and the brochure extract; ~20 real Hindi voice notes to pick OpenAI vs Sarvam; where the dashboard and API are hosted for staging; a real Meta test number for the Phase 1 loop and Phase 3's Android push; a read of the eval cases.
+- Templates checked against Meta's rules before submitting (the seeded set fixed to pass), submitted one by one or all, kept in step by Meta's webhooks and a 15-minute poll; staff can send one from Chat after the 24-hour window. Migration `0007_campaigns` (meta_rates in centipaise, campaigns, campaign_recipients, messages.billable).
+- Campaigns to opted-in contacts only (tag, stage, course, batch; a live count of who is left out), preview for a real person, estimate with GST, scheduled or sent now, never at night, paced 25 at a time every 500 ms, retry-safe, cancellable; results from Meta's statuses with failure reasons and actual cost. Staff record consent; campaign replies become enquiries with source campaign; the owner's 8 PM summary; Reports with tiles, charts and cost by kind. Agents see none of it (spec §19).
+- 408 automated tests. `scripts/e2e-campaign.sh` runs the "done when" in CI on real Postgres and Redis: 50 opted-in contacts, 5 left out, throttled, actual cost equal to the estimate.
+
+## Next: Phase 6, business layer, hardening and launch
+
+Needs from Pratap: confirm Meta's India rates for the card (seeded ₹0.8631 marketing, ₹0.1150 utility and authentication, from 1 Jul 2026); a real WABA with `whatsapp_business_management` to see real template reviews; Razorpay test keys; an LLM key for the evals and brochure extract; ~20 Hindi voice notes; staging hosting; a Meta test number for the Phase 1 loop and Android push; a read of the eval cases.

@@ -29,10 +29,11 @@ describe('locales', () => {
     for (const value of [...keys(hi).map((k) => get(hi, k)), ...keys(en).map((k) => get(en, k))]) {
       expect(value, 'no trailing arrows').not.toMatch(/[→›»]\s*$/)
       expect(value, 'no "A · B" meta strings').not.toMatch(/ · /)
-      expect(
-        value === value.toUpperCase() && /[A-Z]{4,}/.test(value),
-        `no all-caps: ${value}`,
-      ).toBe(false)
+      // STOP is the word people type to opt out, so it is quoted exactly as typed.
+      const text = value.replace(/\bSTOP\b/g, '')
+      expect(text === text.toUpperCase() && /[A-Z]{4,}/.test(text), `no all-caps: ${value}`).toBe(
+        false,
+      )
     }
   })
 })

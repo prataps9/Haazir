@@ -26,6 +26,7 @@
     "knowledge:reindex": "pnpm --filter @haazir/worker knowledge reindex",
     "knowledge:list": "pnpm --filter @haazir/worker knowledge list",
     "bot:ask": "pnpm --filter @haazir/worker ask",
+    "summary:now": "pnpm --filter @haazir/worker summary-now",
     "evals": "pnpm --filter @haazir/evals evals",
     "push:keys": "pnpm --filter @haazir/api push-keys",
     "admin:create": "pnpm --filter @haazir/api create-admin"

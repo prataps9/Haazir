@@ -31,6 +31,7 @@ import { dayLabel, sameDay, windowLeft } from '@/lib/time'
 import { toast } from '@/lib/toast'
 import { displayName, formatPhone, type ConversationSummary, type Message } from '@/lib/types'
 import { useConversation, useMarkRead, useMessages, useModeChange, useSendMessage } from './queries'
+import { TemplatePicker } from './TemplatePicker'
 
 export function ConversationView({ id, onShowContact }: { id: string; onShowContact(): void }) {
   const { t } = useTranslation()
@@ -231,6 +232,7 @@ function MessageList({ conversationId }: { conversationId: string }) {
 
 function Footer({ conversation: c }: { conversation: ConversationSummary }) {
   const { t } = useTranslation()
+  const [picking, setPicking] = useState(false)
   if (c.contact.optInStatus === 'opted_out') {
     return (
       <div className="flex shrink-0 items-start gap-2 border-t border-rule bg-surface px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-body text-ink">
@@ -248,10 +250,10 @@ function Footer({ conversation: c }: { conversation: ConversationSummary }) {
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
           <p className="text-small text-ink-muted">{t('chat.windowClosedBody')}</p>
-          {/* Templates arrive in Phase 5; the button is here so the flow is visible. */}
-          <Button size="md" variant="secondary" disabled title={t('chat.templatesSoon')}>
+          <Button size="md" variant="secondary" onClick={() => setPicking(true)}>
             {t('chat.sendTemplate')}
           </Button>
+          <TemplatePicker conversationId={c.id} open={picking} onOpenChange={setPicking} />
         </div>
       )}
     </div>

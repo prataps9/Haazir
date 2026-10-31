@@ -56,6 +56,22 @@ const screens: RouteObject[] = [
     }),
   },
   {
+    path: 'templates',
+    lazy: async () => ({ Component: (await import('@/features/templates/TemplatesPage')).default }),
+  },
+  {
+    path: 'campaigns',
+    lazy: async () => ({ Component: (await import('@/features/campaigns/CampaignsPage')).default }),
+  },
+  {
+    path: 'campaigns/:id',
+    lazy: async () => ({ Component: (await import('@/features/campaigns/CampaignPage')).default }),
+  },
+  {
+    path: 'reports',
+    lazy: async () => ({ Component: (await import('@/features/reports/ReportsPage')).default }),
+  },
+  {
     path: 'settings',
     lazy: async () => ({ Component: (await import('@/features/settings/SettingsPage')).default }),
   },
@@ -63,7 +79,18 @@ const screens: RouteObject[] = [
   ...[...PRIMARY_NAV.slice(1), ...MORE_NAV.flat()]
     .filter(
       (item) =>
-        !['settings', 'chat', 'knowledge', 'bot', 'leads', 'fees', 'courses'].includes(item.key),
+        ![
+          'settings',
+          'chat',
+          'knowledge',
+          'bot',
+          'leads',
+          'fees',
+          'courses',
+          'templates',
+          'campaigns',
+          'reports',
+        ].includes(item.key),
     )
     .map((item) => ({
       path: item.to.slice(1),

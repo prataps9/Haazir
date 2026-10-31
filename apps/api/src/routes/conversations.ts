@@ -2,16 +2,34 @@ import { Router } from 'express'
 import { and, asc, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import { moveLead } from '@haazir/coaching'
-import { contacts, conversations, leads, memberships, messages, templates, users } from '@haazir/db'
+import {
+  contacts,
+  conversations,
+  leads,
+  memberships,
+  messages,
+  organizations,
+  templates,
+  users,
+} from '@haazir/db'
 import { HUMAN_MODE_MS } from '@haazir/ai-core'
 import {
   campaignContent,
   conversationSummary,
+  copyLanguage,
   messageView,
   queueOutbound,
   recipientContext,
 } from '@haazir/messaging'
-import { AppError, LEAD_STAGES, partsOf, templateParam, variableCount } from '@haazir/shared'
+import {
+  AppError,
+  LEAD_STAGES,
+  partsOf,
+  templateKey,
+  templateParam,
+  variableCount,
+  type TemplatePurpose,
+} from '@haazir/shared'
 import type { AppDeps } from '../deps'
 import { audit, cursor, orgOf, userOf, uuidParam } from '../lib/http'
 
@@ -223,8 +241,16 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
       .from(templates)
       .where(and(eq(templates.orgId, org.id), eq(templates.status, 'approved')))
       .orderBy(asc(templates.purpose), asc(templates.name))
+    // Their language first: the Hinglish, Hindi or English variant they'd read.
+    const [settings] = await db
+      .select({ defaultLanguage: organizations.defaultLanguage })
+      .from(organizations)
+      .where(eq(organizations.id, org.id))
+    const lang = copyLanguage(current.contact.language, settings?.defaultLanguage)
+    const preferred = (purpose: TemplatePurpose) => templateKey(purpose, lang)
     res.json({
       templates: rows.map((t) => {
+        const want = preferred(t.purpose)
         const parts = partsOf(t.components)
         const n = variableCount(parts.body)
         return {
@@ -233,6 +259,8 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
           language: t.language,
           category: t.category,
           purpose: t.purpose,
+          preferred:
+            t.purpose === 'custom' || (t.name === want.name && t.language === want.language),
           body: parts.body,
           variables: t.variables,
           suggested: Array.from({ length: n }, (_, i) => {

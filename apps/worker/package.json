@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "knowledge": "tsx scripts/knowledge.ts",
-    "ask": "tsx scripts/ask.ts"
+    "ask": "tsx scripts/ask.ts",
+    "summary-now": "tsx scripts/summary-now.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.65",

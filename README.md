@@ -25,7 +25,7 @@ packages/
                 and the demo-booking flow
   coaching/     Leads, demo bookings, students, fee installments, receipts, Razorpay payment links
 evals/          73 coaching conversations + the runner behind `pnpm evals`
-scripts/        e2e-whatsapp.sh and e2e-coaching.sh (CI's end-to-end checks)
+scripts/        e2e-whatsapp.sh, e2e-coaching.sh, e2e-campaign.sh (CI's end-to-end checks)
 docs/           Product spec
 ```
 
@@ -102,7 +102,9 @@ The mock prints the read receipt, the reply and the statuses it sends back.
 5. `pnpm whatsapp:connect`, then `pnpm dev`.
 6. Meta must reach your API over HTTPS. Locally, a tunnel works: `cloudflared tunnel --url
 http://localhost:4000`. In **WhatsApp > Configuration**, set the callback URL to
-   `https://<tunnel>/webhooks/whatsapp` with your verify token, then subscribe to `messages`.
+   `https://<tunnel>/webhooks/whatsapp` with your verify token, then subscribe to `messages`,
+   `message_template_status_update` and `template_category_update` (template reviews, Phase 5).
+   The token also needs `whatsapp_business_management` to create templates.
 7. Message the test number from your phone. The reply arrives within a few seconds, and the
    `messages` table shows it going sent, delivered, read.
 
@@ -191,6 +193,9 @@ mock Graph API standing in for Meta. It sends one webhook twice and expects one 
 and one reply that reaches `read`. Then `scripts/e2e-coaching.sh` walks Phase 4's whole journey
 the same way: an enquiry books a demo by taps, the reminder goes out, staff mark "came" and admit,
 the payment link is sent, a signed Razorpay webhook pays it, the receipt goes out and Home counts it.
+`scripts/e2e-campaign.sh` covers Phase 5: templates approved by Meta's webhook, a campaign to 50
+opted-in contacts sent throttled and never to the 5 who said STOP or never said yes, all delivered,
+actual cost equal to the estimate, and Reports counting it.
 
 ## Manual test checklist
 
@@ -291,6 +296,36 @@ flow, the course list and the reminders work without one.
 11. Sign in as `sunita@pragati.example`: none of Shiksha's leads, students, fees or courses show,
     and their ids answer 404.
 
+### Phase 5
+
+Needs `pnpm dev`, a freshly seeded database and `pnpm whatsapp:mock` (it approves templates a
+second after they're submitted, as Meta's review would, and reports template messages as charged).
+Sign in as the owner; `pooja@shiksha.example` (agent) should see none of these screens.
+
+1. **Templates**: 27 drafts (9 messages in Hindi, Hinglish and English). **Send 27 drafts to
+   Meta**: within seconds they turn **Approved**, live, without a reload.
+2. **New template**: type `{{1}} ji, Diwali offer` and the editor says a blank can't start the
+   message; fix it (`Namaste {{1}} ji, …`), add blanks with the chips, watch the phone preview,
+   **Save and send to Meta**. Marketing says what it costs per message.
+3. **Campaigns** > **New campaign**: pick the approved announcement, tag `parent`. The count says
+   who will get it and how many are left out (STOP, no yes yet). Fill the two blanks; the
+   preview shows a real person's message and the estimate reads `~₹… + ₹… GST`.
+4. Choose **Later** and a time after 9 PM: the scheduled time becomes 8 AM. Choose **Now**, confirm:
+   the results page fills in as the mock delivers, about two messages a second, and **Actual**
+   ends equal to **Estimated**.
+5. In a chat, record **They said yes to updates** (a dialog asks you to be sure); the contact
+   panel shows the date and "recorded by the team". After **They said no**, the next campaign
+   leaves them out.
+6. Open a chat whose 24-hour window has closed: **Send template** lists approved ones in that
+   person's language with their name filled in; it sends and shows in the thread as text.
+7. Reply from a campaign recipient (`pnpm whatsapp:simulate --from <their number> "Details?"`):
+   the new enquiry's source is **Campaign**, and Reports counts it under the funnel.
+8. **Reports**: 7 / 30 / 90 days; tiles, enquiries per day (hover or arrow keys read a day),
+   funnel, courses asked, busiest hours, and WhatsApp cost by kind. Each chart has a table view.
+9. **Settings** > **Daily summary on WhatsApp**: save your number, switch it on. The worker sends
+   it at 8 PM; `pnpm summary:now` sends today's at once (the mock prints it).
+10. Super admin: `GET /api/v1/admin/meta-rates` shows today's card; `POST` a new rate from a date.
+
 ## Teams, tenants and the dashboard (Phase 3)
 
 - **Login:** Better Auth (email + password, cookie session). Invite-only: the super admin creates an
@@ -352,6 +387,33 @@ admitted`, or `lost` with a reason). A staff reply moves a new lead to contacted
 
 To try the Razorpay calls without an account, point `RAZORPAY_BASE_URL` at the mock
 (`http://localhost:4010`); leave it unset to use Razorpay's test mode with `rzp_test_` keys.
+
+## Templates, campaigns and reports (Phase 5)
+
+- **Templates** live on the institute's WhatsApp Business Account. Drafts are checked against
+  Meta's rules before they're submitted (no blank at the start or end, blanks in order, lengths,
+  buttons), sent with an example for every blank, and kept in step with Meta by its
+  `message_template_status_update` / `template_category_update` webhooks plus a poll every 15
+  minutes (`template-sync` queue). Templates made in Meta's own tools are added too.
+- **Campaigns** go to opted-in contacts only, enforced in one place (`audienceWhere`), filtered by
+  tag, enquiry stage, course and batch. The worker (`campaign` queue) snapshots the audience when
+  it starts and sends in batches of 25, one message every 500 ms, never between 9 PM and 8 AM
+  IST; a cancel stops it between batches. Each recipient is claimed and their message written in
+  one transaction, so a retried job sends nobody twice. Campaign messages don't reorder the inbox.
+- **Cost**: `meta_rates` holds Meta's rate card (centipaise, so ₹0.8631 is exact) by category and
+  date; the estimate is audience × rate, GST shown apart. Actual cost is the delivered messages
+  Meta marked billable (`pricing.billable` on status webhooks) at the rate on the campaign's day.
+  Meta bills the institute's own WhatsApp account; Haazir only shows the numbers.
+- **Consent** (spec §19): staff record a yes (source and time) or a no in the contact panel; a
+  STOP sent on WhatsApp can only be undone by the person. Replies to a campaign within a week
+  become enquiries with source "campaign".
+- **Daily summary**: owners and admins can get "Aaj ka hisaab" at 8 PM on their own WhatsApp
+  (`summary` queue). Their number becomes a team contact that never joins a campaign or the leads.
+- **Reports** (`GET /analytics/report?days=7|30|90`): tiles, enquiries per day, funnel, top
+  courses, busiest hours, cost by category. Owners and admins only, like campaigns and templates.
+
+`QUIET_HOURS_OFF=true` lets campaigns go out at night: for CI and late demos only, refused in
+production. `pnpm summary:now` sends today's summary without waiting for 8 PM.
 
 ## Database
 

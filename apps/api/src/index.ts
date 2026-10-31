@@ -109,6 +109,7 @@ const app = createApp({
   encryptionKey: env.ENCRYPTION_KEY,
   razorpay: (credentials) => createRazorpay({ ...credentials, baseUrl: env.RAZORPAY_BASE_URL }),
   vapidPublicKey: env.VAPID_PUBLIC_KEY,
+  quietHoursOff: env.QUIET_HOURS_OFF,
   now: () => new Date(),
 })
 server.on('request', app)
