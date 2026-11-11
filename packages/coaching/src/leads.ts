@@ -21,6 +21,10 @@ export async function ensureLead(
     courseId?: string | null
     studentName?: string | null
     notes?: string | null
+    /** The Click-to-WhatsApp ad their first message came from. */
+    ad?: { sourceId?: string; headline?: string; sourceUrl?: string } | null
+    /** The campaign this message answers. Recorded on new and open leads alike. */
+    campaignId?: string | null
   } & Actor,
 ): Promise<(Lead & { isNew?: true }) | null> {
   const [existing] = await db
@@ -33,6 +37,13 @@ export async function ensureLead(
     if (input.studentName && !existing.studentName) patch.studentName = input.studentName
     if (input.notes)
       patch.notes = existing.notes ? `${existing.notes}\n${input.notes}` : input.notes
+    // Last campaign answered wins, until they're admitted: then the credit is settled.
+    if (
+      input.campaignId &&
+      existing.campaignId !== input.campaignId &&
+      existing.stage !== 'admitted'
+    )
+      patch.campaignId = input.campaignId
     if (!Object.keys(patch).length) return existing
     const [updated] = await db.update(leads).set(patch).where(eq(leads.id, existing.id)).returning()
     return updated ?? existing
@@ -51,6 +62,10 @@ export async function ensureLead(
       orgId: input.orgId,
       contactId: input.contactId,
       source: input.source ?? 'whatsapp',
+      adSourceId: input.ad?.sourceId ?? null,
+      adHeadline: input.ad?.headline ?? null,
+      adSourceUrl: input.ad?.sourceUrl ?? null,
+      campaignId: input.campaignId ?? null,
       courseId: input.courseId ?? null,
       studentName: input.studentName ?? null,
       notes: input.notes ?? null,

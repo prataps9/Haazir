@@ -179,6 +179,15 @@ export const messages = pgTable(
     sentBy: sentByEnum(),
     sentByUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
     aiTraceId: uuid(),
+    /** The Click-to-WhatsApp ad or post this message came from (inbound only). */
+    referral: jsonb().$type<{
+      sourceType?: string
+      sourceId?: string
+      sourceUrl?: string
+      headline?: string
+      body?: string
+      clickId?: string
+    }>(),
     replyToWaMessageId: text(),
     /** When WhatsApp says it happened (inbound: sent by the contact). */
     waTimestamp: timestamp({ withTimezone: true }),

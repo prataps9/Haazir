@@ -605,6 +605,28 @@ function Results({ campaign: c }: { campaign: CampaignView }) {
           ))}
         </dl>
 
+        {r && r.outcomes.enquiries > 0 && (
+          <section>
+            <h2 className="text-h3 text-ink">{t('campaigns.outcomes.title')}</h2>
+            <p className="mt-1 text-small text-ink-muted">{t('campaigns.outcomes.help')}</p>
+            <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(
+                [
+                  ['enquiries', formatCount(r.outcomes.enquiries)],
+                  ['demos', formatCount(r.outcomes.demos)],
+                  ['admissions', formatCount(r.outcomes.admissions)],
+                  ['fees', formatPaise(r.outcomes.feesPaise)],
+                ] as const
+              ).map(([k, v]) => (
+                <div key={k} className="rounded-card border border-rule bg-surface p-4">
+                  <dt className="text-small text-ink-muted">{t(`campaigns.outcomes.${k}`)}</dt>
+                  <dd className="mt-1 font-display text-h1 text-ink">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
         {r && r.failures.length > 0 && (
           <section>
             <h2 className="text-h3 text-ink">{t('campaigns.whyFailed')}</h2>

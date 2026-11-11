@@ -54,6 +54,11 @@ function LeadBody({ lead }: { lead: LeadDetail }) {
             <StatusPill tone={STAGE_TONE[lead.stage]}>{t(`stages.${lead.stage}`)}</StatusPill>
             <StatusPill tone="neutral">{t(`sources.${lead.source}`)}</StatusPill>
           </div>
+          {lead.adHeadline && (
+            <p className="mt-1.5 text-small text-ink-muted">
+              {t('leads.fromAd', { headline: lead.adHeadline })}
+            </p>
+          )}
         </div>
       </div>
 

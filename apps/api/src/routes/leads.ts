@@ -22,6 +22,8 @@ const leadView = {
   id: leads.id,
   stage: leads.stage,
   source: leads.source,
+  adHeadline: leads.adHeadline,
+  adSourceUrl: leads.adSourceUrl,
   courseId: leads.courseId,
   courseName: courses.shortName,
   batchId: leads.batchId,

@@ -9,7 +9,7 @@ import {
   recordUnanswered,
   rememberLanguage,
 } from '@haazir/ai-core'
-import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
+import { campaignRecipients, contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
 import {
   announceConversation,
   announceMessage,
@@ -67,7 +67,7 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     .where(eq(contacts.id, row.conversation.contactId))
   if (contact?.optInSource !== TEAM_OPT_IN_SOURCE) {
     const [lastOut] = await deps.db
-      .select({ sentBy: messages.sentBy, createdAt: messages.createdAt })
+      .select({ id: messages.id, sentBy: messages.sentBy, createdAt: messages.createdAt })
       .from(messages)
       .where(
         and(
@@ -81,10 +81,25 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     const fromCampaign =
       lastOut?.sentBy === 'campaign' &&
       row.message.createdAt.getTime() - lastOut.createdAt.getTime() < CAMPAIGN_CREDIT_MS
+    const [recipient] = fromCampaign
+      ? await deps.db
+          .select({ campaignId: campaignRecipients.campaignId })
+          .from(campaignRecipients)
+          .where(
+            and(
+              eq(campaignRecipients.orgId, job.orgId),
+              eq(campaignRecipients.messageId, lastOut.id),
+            ),
+          )
+      : []
+    // A chat opened from a Click-to-WhatsApp ad says so on its first message.
+    const ad = row.message.referral
     const lead = await ensureLead(deps.db, {
       orgId: job.orgId,
       contactId: row.conversation.contactId,
-      source: fromCampaign ? 'campaign' : undefined,
+      source: fromCampaign ? 'campaign' : ad ? 'ad' : undefined,
+      ad,
+      campaignId: recipient?.campaignId,
       actor: 'bot',
     })
     if (lead?.isNew) deps.events.emit(job.orgId, 'lead:updated', { leadId: lead.id })

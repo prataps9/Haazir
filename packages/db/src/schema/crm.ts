@@ -60,6 +60,16 @@ export const leads = pgTable(
     studentName: text(),
     notes: text(),
     nextFollowupAt: timestamp({ withTimezone: true }),
+    /** The Click-to-WhatsApp ad the first message came from, when `source` is `ad`. */
+    adSourceId: text(),
+    adHeadline: text(),
+    adSourceUrl: text(),
+    /**
+     * The last campaign this person answered before being admitted: what the
+     * campaign's "admissions" count is built on. No foreign key (campaigns.ts
+     * imports this file); a deleted campaign just stops matching.
+     */
+    campaignId: uuid(),
     lostReason: text(),
     valuePaise: integer(),
     assignedUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
@@ -69,6 +79,7 @@ export const leads = pgTable(
   (t) => [
     uniqueIndex('leads_org_contact_unique').on(t.orgId, t.contactId),
     index('leads_org_stage_idx').on(t.orgId, t.stage),
+    index('leads_org_campaign_idx').on(t.orgId, t.campaignId),
   ],
 )
 

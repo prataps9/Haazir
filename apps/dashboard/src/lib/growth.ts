@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   CampaignAudience,
+  LeadSource,
   CampaignStatus,
   CampaignVariable,
   PricingCategory,
@@ -49,6 +50,8 @@ export interface CampaignResults extends CampaignStats {
   failures: { code: string; title: string | null; count: number }[]
   actualCostPaise: number
   actualGstPaise: number
+  /** People who answered this campaign, and how far they went afterwards. */
+  outcomes: { enquiries: number; demos: number; admissions: number; feesPaise: number }
 }
 
 export interface CampaignView {
@@ -108,6 +111,7 @@ export interface Report {
   enquiriesPerDay: { day: string; n: number }[]
   funnel: { enquiries: number; demos: number; admitted: number; fromCampaigns: number }
   topCourses: { course: string; n: number }[]
+  sources: { source: LeadSource; n: number; admitted: number }[]
   /** weekday 1 = Monday … 7 = Sunday; hour 0–23, India time. */
   heatmap: { weekday: number; hour: number; n: number }[]
   costs: { category: PricingCategory; sent: number; billable: number; costPaise: number }[]

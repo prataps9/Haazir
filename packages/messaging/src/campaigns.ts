@@ -1,6 +1,6 @@
 import { and, asc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { campaigns, templates } from '@haazir/db'
-import { campaignRecipients, contacts, messages, type AnyDatabase } from '@haazir/db'
+import { campaignRecipients, contacts, leads, messages, type AnyDatabase } from '@haazir/db'
 import {
   costPaise,
   fillTemplate,
@@ -262,9 +262,44 @@ export async function campaignResults(db: AnyDatabase, campaign: Campaign, templ
   const actualCostPaise = Math.round(actual)
   return {
     ...counts,
+    outcomes: await campaignOutcomes(db, campaign),
     failures: [...failures.values()].sort((a, b) => b.count - a.count),
     actualCostPaise,
     actualGstPaise: gstPaise(actualCostPaise),
+  }
+}
+
+/**
+ * What a campaign led to: the people who answered it (their lead carries the
+ * campaign) and how far they went afterwards. Last answer wins, so a person
+ * is counted for one campaign only. Fees are what those people paid after the
+ * campaign started.
+ */
+export async function campaignOutcomes(db: AnyDatabase, campaign: Campaign) {
+  const since = (campaign.startedAt ?? campaign.createdAt).toISOString()
+  const mine = sql`"leads"."org_id" = ${campaign.orgId} and "leads"."campaign_id" = ${campaign.id}`
+  const [row] = await db
+    .select({
+      enquiries: sql<number>`count(*)::int`,
+      demos: sql<number>`(count(*) filter (where exists (
+        select 1 from demo_bookings d where d.contact_id = "leads"."contact_id"
+          and d.org_id = "leads"."org_id" and d.created_at >= ${since}::timestamptz)))::int`,
+      admissions: sql<number>`(count(*) filter (where "leads"."stage" = 'admitted'
+        and "leads"."stage_changed_at" >= ${since}::timestamptz))::int`,
+      feesPaise: sql<number>`coalesce((
+        select sum(f.amount_paise) from fee_installments f
+          join students s on s.id = f.student_id
+          where f.org_id = ${campaign.orgId} and f.status = 'paid' and f.paid_at >= ${since}::timestamptz
+            and s.contact_id in (select l.contact_id from leads l
+              where l.org_id = ${campaign.orgId} and l.campaign_id = ${campaign.id})), 0)::int`,
+    })
+    .from(leads)
+    .where(mine)
+  return {
+    enquiries: row?.enquiries ?? 0,
+    demos: row?.demos ?? 0,
+    admissions: row?.admissions ?? 0,
+    feesPaise: row?.feesPaise ?? 0,
   }
 }
 

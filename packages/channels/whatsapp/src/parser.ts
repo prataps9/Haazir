@@ -50,6 +50,20 @@ export interface InboundMessage {
   reaction?: { messageId: string; emoji?: string }
   /** The message this one quotes. */
   replyTo?: string
+  /** Set when the chat was opened from a Click-to-WhatsApp ad or post. */
+  referral?: AdReferral
+}
+
+/** Where a Click-to-WhatsApp chat came from, as Meta reports it on the first message. */
+export interface AdReferral {
+  sourceType?: string
+  /** Meta's id of the ad or post. */
+  sourceId?: string
+  sourceUrl?: string
+  headline?: string
+  body?: string
+  /** Meta's click id, for matching against Ads Manager. */
+  clickId?: string
 }
 
 export type DeliveryStatus = 'sent' | 'delivered' | 'read' | 'failed'
@@ -133,6 +147,16 @@ const messageSchema = z.object({
     .optional(),
   button: z.object({ payload: z.string().optional(), text: z.string() }).optional(),
   reaction: z.object({ message_id: z.string(), emoji: z.string().optional() }).optional(),
+  referral: z
+    .object({
+      source_type: z.string().optional(),
+      source_id: z.string().optional(),
+      source_url: z.string().optional(),
+      headline: z.string().optional(),
+      body: z.string().optional(),
+      ctwa_clid: z.string().optional(),
+    })
+    .optional(),
 })
 
 const statusSchema = z.object({
@@ -315,6 +339,19 @@ function toInbound(
     profileName: contact?.profile?.name,
     timestamp: m.timestamp,
     replyTo: m.context?.id,
+    // Advertisers write these; keep them short enough for a lead card.
+    ...(m.referral
+      ? {
+          referral: {
+            sourceType: m.referral.source_type,
+            sourceId: m.referral.source_id?.slice(0, 100),
+            sourceUrl: m.referral.source_url?.slice(0, 500),
+            headline: m.referral.headline?.slice(0, 200),
+            body: m.referral.body?.slice(0, 500),
+            clickId: m.referral.ctwa_clid?.slice(0, 300),
+          },
+        }
+      : {}),
   }
 
   if (m.type === 'text' && m.text) return { ...base, type: 'text', text: m.text.body }

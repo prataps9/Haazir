@@ -153,6 +153,31 @@ function Body({
         </ChartCard>
 
         <ChartCard
+          title={t('reports.sources')}
+          description={t('reports.sourcesHelp')}
+          table={{
+            head: [
+              t('reports.source'),
+              t('reports.tiles.enquiries'),
+              t('reports.tiles.admissions'),
+            ],
+            rows: r.sources.map((s) => [t(`sources.${s.source}`), s.n, s.admitted]),
+          }}
+        >
+          {r.sources.length ? (
+            <HBars
+              rows={r.sources.map((s) => ({
+                label: t(`sources.${s.source}`),
+                value: s.n,
+                note: t('reports.sourceAdmitted', { count: s.admitted }),
+              }))}
+            />
+          ) : (
+            <p className="text-small text-ink-muted">{t('reports.noData')}</p>
+          )}
+        </ChartCard>
+
+        <ChartCard
           title={t('reports.topCourses')}
           table={{
             head: [t('reports.course'), t('reports.tiles.enquiries')],

@@ -180,7 +180,7 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
     const inRange = (col: Parameters<typeof gte>[0]) => and(gte(col, r.from), lt(col, r.to))
     const istDay = (col: unknown) => sql`to_char(${col} at time zone 'Asia/Kolkata', 'YYYY-MM-DD')`
 
-    const [ledger, firstReply, perDay, funnel, topCourses, heat, costRows, rates] =
+    const [ledger, firstReply, perDay, funnel, topCourses, heat, costRows, rates, sources] =
       await Promise.all([
         ledgerNumbers(db, org.id, startDate, days),
         // Median time from someone's first message in the period to our first answer.
@@ -258,6 +258,17 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
           )
           .groupBy(messages.pricingCategory),
         ratesOn(db, today),
+        // Where the period's enquiries came from, and how many of each were admitted.
+        db
+          .select({
+            source: leads.source,
+            n: sql<number>`count(*)::int`,
+            admitted: sql<number>`(count(*) filter (where ${leads.stage} = 'admitted'))::int`,
+          })
+          .from(leads)
+          .where(and(eq(leads.orgId, org.id), inRange(leads.createdAt)))
+          .groupBy(leads.source)
+          .orderBy(sql`2 desc`),
       ])
 
     const counts = new Map(perDay.map((d) => [d.day, d.n]))
@@ -296,6 +307,7 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
       }),
       funnel: cohort,
       topCourses,
+      sources,
       heatmap: heat,
       costs,
     })

@@ -22,6 +22,31 @@ describe('parseWebhook: messages', () => {
     ])
   })
 
+  it('keeps where a Click-to-WhatsApp chat came from, cut to a sensible length', () => {
+    const payload = fx.textMessage() as unknown as {
+      entry: { changes: { value: { messages: Record<string, unknown>[] } }[] }[]
+    }
+    payload.entry[0]!.changes[0]!.value.messages[0]!.referral = {
+      source_type: 'ad',
+      source_id: '120210000000000001',
+      source_url: 'https://fb.me/abc123',
+      headline: 'RS-CIT naya batch'.padEnd(400, '!'),
+      body: 'Free demo class',
+      media_type: 'image',
+      ctwa_clid: 'ARAkLkA8rmlFeiCktEJQ',
+    }
+    const { messages, problems } = parseWebhook(payload)
+    expect(problems).toEqual([])
+    expect(messages[0]!.referral).toEqual({
+      sourceType: 'ad',
+      sourceId: '120210000000000001',
+      sourceUrl: 'https://fb.me/abc123',
+      headline: 'RS-CIT naya batch'.padEnd(200, '!'),
+      body: 'Free demo class',
+      clickId: 'ARAkLkA8rmlFeiCktEJQ',
+    })
+  })
+
   it('parses a voice note as audio media, marked as voice', () => {
     const [m] = parseWebhook(fx.voiceNote).messages
     expect(m?.type).toBe('audio')

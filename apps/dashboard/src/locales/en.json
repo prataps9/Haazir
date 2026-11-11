@@ -520,7 +520,8 @@
     "demoDate": "Date",
     "demoBooked": "Demo booked. A confirmation went on WhatsApp.",
     "demos": "Demo classes",
-    "dragHint": "Drag a card to another column, or open it to move it."
+    "dragHint": "Drag a card to another column, or open it to move it.",
+    "fromAd": "Came from the ad \"{{headline}}\""
   },
   "demo": {
     "status": {
@@ -961,7 +962,15 @@
     "segment": "Start from a saved segment",
     "segmentHint": "Fills the choices below. You can still change them.",
     "segmentPick": "Choose a segment",
-    "tagsInUse": "Tags in use"
+    "tagsInUse": "Tags in use",
+    "outcomes": {
+      "title": "What it led to",
+      "help": "People who replied to this campaign, and what they did after it started.",
+      "enquiries": "Replied and became leads",
+      "demos": "Booked a demo",
+      "admissions": "Admitted",
+      "fees": "Fees received"
+    }
   },
   "reports": {
     "title": "Reports",
@@ -1020,7 +1029,12 @@
       "utility": "Utility",
       "authentication": "Authentication",
       "service": "Replies (service)"
-    }
+    },
+    "sources": "Where enquiries came from",
+    "sourcesHelp": "How people first reached you in this period.",
+    "source": "Source",
+    "sourceAdmitted_one": "{{count}} admitted",
+    "sourceAdmitted_other": "{{count}} admitted"
   },
   "contacts": {
     "title": "Contacts",

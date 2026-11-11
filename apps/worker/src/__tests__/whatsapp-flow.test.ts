@@ -6,6 +6,7 @@ import {
   aiTraces,
   contacts,
   conversations,
+  leads,
   memberships,
   messages,
   organizations,
@@ -354,6 +355,37 @@ describe("the brain's decisions, carried out", () => {
     const [conversation] = await h.db.select().from(conversations)
     expect(conversation?.mode).toBe('bot')
     expect(graph.sent).toHaveLength(2)
+  })
+
+  it('a chat opened from an ad becomes a lead with source "ad" and the ad it came from', async () => {
+    const payload = inboundText({ id: 'wamid.AD1', body: 'Is batch ki jaankari chahiye' })
+    ;(
+      payload.entry[0]!.changes[0]!.value as unknown as { messages: Record<string, unknown>[] }
+    ).messages[0]!.referral = {
+      source_type: 'ad',
+      source_id: '120210000000000001',
+      source_url: 'https://fb.me/abc123',
+      headline: 'RS-CIT naya batch',
+    }
+    await processInbound(h.deps, { payload })
+    await runQueues()
+    const [message] = await h.db.select().from(messages).where(eq(messages.direction, 'in'))
+    expect(message?.referral).toMatchObject({ sourceId: '120210000000000001' })
+    const [lead] = await h.db.select().from(leads)
+    expect(lead).toMatchObject({
+      source: 'ad',
+      adSourceId: '120210000000000001',
+      adHeadline: 'RS-CIT naya batch',
+      adSourceUrl: 'https://fb.me/abc123',
+      campaignId: null,
+    })
+  })
+
+  it('an ordinary first message is a WhatsApp lead with no ad on it', async () => {
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+    const [lead] = await h.db.select().from(leads)
+    expect(lead).toMatchObject({ source: 'whatsapp', adSourceId: null, adHeadline: null })
   })
 
   it('STOP: one confirmation, the contact opted out, and silence after that', async () => {

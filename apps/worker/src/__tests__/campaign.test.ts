@@ -5,9 +5,11 @@ import {
   campaigns,
   contacts,
   conversations,
+  feeInstallments,
   leads,
   memberships,
   messages,
+  students,
   templates,
   users,
 } from '@haazir/db'
@@ -18,6 +20,7 @@ import {
   TEAM_OPT_IN_SOURCE,
   type CampaignJob,
 } from '@haazir/messaging'
+import { ensureLead } from '@haazir/coaching'
 import { CAMPAIGN_BATCH_SIZE, CAMPAIGN_SEND_INTERVAL_MS, costPaise } from '@haazir/shared'
 import { processAiReply } from '../processors/aiReply'
 import { processCampaign } from '../processors/campaign'
@@ -290,6 +293,109 @@ describe('campaign safety', () => {
       .innerJoin(contacts, eq(contacts.id, leads.contactId))
       .where(eq(contacts.waId, phone(0)))
     expect(lead?.source).toBe('campaign')
+  })
+
+  it('counts what a campaign led to: replies, demos, admissions and fees after it started', async () => {
+    await audience()
+    // Someone who enquired on their own last month, before any campaign.
+    const [known] = await h.db
+      .select()
+      .from(contacts)
+      .where(eq(contacts.waId, phone(1)))
+    await h.db.insert(leads).values({ orgId: h.org.id, contactId: known!.id, source: 'walkin' })
+
+    const { campaign } = await scheduledCampaign()
+    await processCampaign(h.deps, { orgId: h.org.id, campaignId: campaign.id })
+    for (const job of h.queues.outbound.jobs.splice(0, 3)) await processOutbound(h.deps, job.data)
+    h.setNow(new Date('2026-09-26T08:00:00Z'))
+    h.deps.models = null
+    for (const i of [0, 1]) {
+      await processInbound(h.deps, {
+        payload: inboundText({
+          id: `wamid.OUTCOME${i}`,
+          from: phone(i),
+          bsuid: `IN.OUTCOME${i}`,
+          body: 'Details bhejo',
+          ts: 1790409600,
+        }),
+      })
+    }
+    for (const job of h.queues.aiReply.jobs.splice(0)) await processAiReply(h.deps, job.data)
+
+    const mine = await h.db
+      .select({
+        waId: contacts.waId,
+        source: leads.source,
+        campaignId: leads.campaignId,
+        id: leads.id,
+      })
+      .from(leads)
+      .innerJoin(contacts, eq(contacts.id, leads.contactId))
+    const fresh = mine.find((l) => l.waId === phone(0))!
+    const old = mine.find((l) => l.waId === phone(1))!
+    // Both answered this campaign; where they first came from is left as it was.
+    expect(fresh).toMatchObject({ source: 'campaign', campaignId: campaign.id })
+    expect(old).toMatchObject({ source: 'walkin', campaignId: campaign.id })
+
+    const [started] = await h.db.select().from(campaigns).where(eq(campaigns.id, campaign.id))
+    expect((await campaignResults(h.db, started!)).outcomes).toEqual({
+      enquiries: 2,
+      demos: 0,
+      admissions: 0,
+      feesPaise: 0,
+    })
+
+    // One is admitted and pays; an old payment from before the campaign doesn't count.
+    const now = h.deps.now()
+    await h.db
+      .update(leads)
+      .set({ stage: 'admitted', stageChangedAt: now })
+      .where(eq(leads.id, old.id))
+    const [student] = await h.db
+      .insert(students)
+      .values({
+        orgId: h.org.id,
+        contactId: known!.id,
+        name: 'Old enquiry',
+        admissionDate: '2026-09-26',
+      })
+      .returning()
+    await h.db.insert(feeInstallments).values([
+      {
+        orgId: h.org.id,
+        studentId: student!.id,
+        label: '1',
+        dueDate: '2026-09-26',
+        amountPaise: 450000,
+        status: 'paid',
+        paidAt: now,
+      },
+      {
+        orgId: h.org.id,
+        studentId: student!.id,
+        label: 'old',
+        dueDate: '2026-01-01',
+        amountPaise: 100000,
+        status: 'paid',
+        paidAt: new Date('2026-01-01T06:00:00Z'),
+      },
+    ])
+    expect((await campaignResults(h.db, started!)).outcomes).toEqual({
+      enquiries: 2,
+      demos: 0,
+      admissions: 1,
+      feesPaise: 450000,
+    })
+
+    // Once admitted, a later campaign reply doesn't move the credit.
+    await ensureLead(h.db, {
+      orgId: h.org.id,
+      contactId: known!.id,
+      campaignId: '00000000-0000-4000-8000-000000000000',
+      actor: 'bot',
+    })
+    const [after] = await h.db.select().from(leads).where(eq(leads.id, old.id))
+    expect(after?.campaignId).toBe(campaign.id)
   })
 })
 

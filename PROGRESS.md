@@ -99,8 +99,22 @@ Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after t
      rows per import; the list pages by offset, 50 at a time; `contacts.customFields` still has no
      screen. Locally the mock Meta server kept an old `apps/api/.data/mock-templates.json` that
      made the campaign e2e fail on a fresh database; removing that file fixes it.
-5. Click-to-WhatsApp ad source and per-campaign admissions (not started). Agreed: the ad
-   reference is stored on the lead.
+5. **Ad source and what a campaign led to (done).** Migration `0009_attribution`.
+   - The webhook parser keeps Meta's `referral` (Click-to-WhatsApp ad or post) on the inbound
+     message (`messages.referral`). A lead created from such a message gets source `ad` and the
+     ad's id, headline and link; the lead sheet shows the headline.
+   - A reply within 7 days of a campaign message puts that campaign on the lead
+     (`leads.campaign_id`), for new and existing leads alike, until the lead is admitted. The last
+     campaign answered wins, so one person counts for one campaign. `source` still means where
+     they first came from.
+   - Campaign results show what it led to: people who replied, demos booked, admissions and fees
+     received after it started (`campaignOutcomes`). Reports has "Where enquiries came from", by
+     source, with admissions for each.
+   - Verified: parser, worker and campaign tests; all three e2e scripts on a fresh database.
+   - Known gaps: Meta's `referral` shape is taken from its documentation and has not been seen
+     from a real ad; no screen lists leads per ad; `leads.campaign_id` has no foreign key (the
+     schema files would import each other); the outcome tiles were tested by query, not seen in
+     the browser with real replies; the ad click id is stored on the message but not used.
 6. Follow-up sequences (not started). Agreed: at most 3 steps, off by default, cost shown.
 
 ## Next: Phase 6, business layer, hardening and launch

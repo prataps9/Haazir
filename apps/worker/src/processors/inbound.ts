@@ -185,6 +185,7 @@ async function storeInbound(deps: Deps, account: WhatsappAccount, m: InboundMess
         mediaId: m.media?.id,
         mediaMime: m.media?.mimeType,
         replyToWaMessageId: m.replyTo,
+        referral: m.referral ?? null,
         waTimestamp: m.timestamp,
       })
       .onConflictDoNothing({ target: messages.waMessageId })

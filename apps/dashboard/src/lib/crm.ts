@@ -46,6 +46,9 @@ export interface LeadRow {
   id: string
   stage: LeadStage
   source: LeadSource
+  /** The Click-to-WhatsApp ad their first message came from, if any. */
+  adHeadline: string | null
+  adSourceUrl: string | null
   courseId: string | null
   courseName: string | null
   batchId: string | null
