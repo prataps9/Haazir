@@ -59,6 +59,10 @@ export interface FlowStore {
   demo?: DemoState
   /** The language of the bot's last reply, for taps (a button title says little). */
   lang?: ReplyLanguage
+  /** When the "we're closed" line was last added, so it's said once a night, not on every reply. */
+  awayAt?: string
+  /** The person has been asked once whether they want updates and offers. */
+  optInAsked?: true
 }
 
 export interface TraceData {
@@ -97,6 +101,8 @@ export type Decision =
       trace: TraceData
       actions: AgentAction[]
       flowState: FlowStore | null
+      /** A second message sent after the reply: the one-time "may we send you updates?" */
+      followUp?: ReplyContent
     }
   /** Tell the person the team will reply, and put the chat in human mode. */
   | {
@@ -111,6 +117,8 @@ export type Decision =
     }
   /** Mark the contact opted out and send the single confirmation. */
   | { kind: 'optout'; content: ReplyContent; trace: TraceData }
+  /** The person asked for updates themselves (START, or the "yes" button): record it and confirm. */
+  | { kind: 'optin'; content: ReplyContent; source: 'keyword' | 'button'; trace: TraceData }
   /** Say nothing (staff are handling it, or there's nothing to answer). */
   | { kind: 'silent'; reason: string }
 
@@ -129,6 +137,12 @@ export interface Turn {
 }
 
 const HUMAN_MODE_MS = 2 * 60 * 60 * 1000
+/** The "we're closed" line is repeated only after this long: once a night. */
+const AWAY_REPEAT_MS = 12 * 60 * 60 * 1000
+/** The whole message must be one of these: "course start kab hoga" is a question, not consent. */
+const OPT_IN_WORDS = ['start', 'subscribe', 'shuru', 'शुरू', 'शुरू करो']
+/** Ask about updates only once the person has written a few times, not on "hello". */
+const OPT_IN_ASK_AFTER_MESSAGES = 3
 const MEDIA_TYPES = new Set(['image', 'video', 'document', 'sticker'])
 const SILENT_TYPES = new Set(['location', 'reaction', 'contacts', 'unsupported'])
 const ANSWER_INTENTS_WITH_BUTTONS = new Set<Intent>([
@@ -240,6 +254,21 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
       ? store.demo
       : null
   const actions: AgentAction[] = []
+  const hours = org.businessHours as BusinessHours | null
+  const closedNow = !isOpen(hours, now, org.timezone)
+  const awayDue =
+    closedNow && (!store.awayAt || now.getTime() - Date.parse(store.awayAt) >= AWAY_REPEAT_MS)
+  // Consent for updates and offers (spec §19): asked once, never of the team or the test box.
+  const mayAskOptIn =
+    contact.optInStatus === 'unknown' &&
+    !store.optInAsked &&
+    !contact.waId.startsWith('playground-') &&
+    (await db.$count(
+      messages,
+      and(eq(messages.conversationId, conversation.id), eq(messages.direction, 'in')),
+    )) >= OPT_IN_ASK_AFTER_MESSAGES
+  /** True while the person is in the middle of something: no extra lines, no extra questions. */
+  let midFlow = false
   const reply = (
     content: ReplyContent,
     lang: ReplyLanguage,
@@ -249,12 +278,45 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
     const flowState: FlowStore = { lang }
     if (next.demo) flowState.demo = next.demo
     if (next.clarifyMisses) flowState.clarifyMisses = next.clarifyMisses
+    if (store.awayAt) flowState.awayAt = store.awayAt
+    if (store.optInAsked) flowState.optInAsked = true
+    const quiet = midFlow || !!next.demo || !!next.clarifyMisses
+    let out = content
+    if (awayDue && !quiet) {
+      const when = describeOpening(nextOpening(hours, now, org.timezone), lang)
+      const line = pick(bot?.afterHoursMessage, COPY.closedNow, lang).replace('{when}', when)
+      out = { ...content, body: `${content.body}\n\n${line}`.slice(0, 1024) }
+      flowState.awayAt = now.toISOString()
+    }
+    let followUp: ReplyContent | undefined
+    if (mayAskOptIn && !quiet) {
+      followUp = {
+        kind: 'buttons',
+        body: COPY.optInAsk[lang],
+        buttons: [
+          { id: 'optin_yes', title: COPY.optInYes[lang] },
+          { id: 'optin_no', title: COPY.optInNo[lang] },
+        ],
+      }
+      flowState.optInAsked = true
+    }
     return finish({
       kind: 'reply' as const,
-      content: withPrivacy(content, lang),
+      content: withPrivacy(out, lang),
       trace,
       actions,
       flowState,
+      followUp,
+    })
+  }
+  const optIn = (source: 'keyword' | 'button', lang: ReplyLanguage) => {
+    trace.intent = 'opt_in'
+    trace.language = lang
+    return finish({
+      kind: 'optin' as const,
+      content: { kind: 'text' as const, body: COPY.optedIn[lang] },
+      source,
+      trace,
     })
   }
 
@@ -266,11 +328,8 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   ) => {
     let body =
       extra.body ?? (extra.copy ? extra.copy[lang] : pick(bot?.fallbackMessage, COPY.handoff, lang))
-    if (!isOpen(org.businessHours as BusinessHours | null, now, org.timezone)) {
-      const when = describeOpening(
-        nextOpening(org.businessHours as BusinessHours | null, now, org.timezone),
-        lang,
-      )
+    if (closedNow) {
+      const when = describeOpening(nextOpening(hours, now, org.timezone), lang)
       body += ` ${pick(bot?.afterHoursMessage, COPY.afterHours, lang).replace('{when}', when)}`
     }
     trace.language ??= lang
@@ -312,6 +371,21 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
       content: { kind: 'text', body: COPY.optOut[guessLang] },
       trace,
     })
+  }
+
+  // Their own START undoes their own STOP; nobody else can (spec §19).
+  if (
+    text &&
+    contact.optInStatus !== 'opted_in' &&
+    OPT_IN_WORDS.some((w) => normaliseText(w) === normaliseText(text))
+  ) {
+    // One word says little about language: use the one they were last answered in.
+    const known = store.lang ?? contact.language
+    const lang =
+      known === 'hi' || known === 'en' || known === 'hinglish'
+        ? allowedLanguage(known, bot?.languages)
+        : guessLang
+    return optIn('keyword', lang)
   }
 
   if (text && bot?.handoffKeywords?.length && isKeywordMessage(text, bot.handoffKeywords)) {
@@ -361,12 +435,15 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   }
 
   if (tapId) {
+    midFlow = true
     trace.intent = `tap:${tapId.split(':')[0]}`
     const tapped = await handleTap(tapId, tapLang)
     if (tapped) return tapped
+    midFlow = false
   }
 
   if (activeDemo) {
+    midFlow = true
     const ctx = await flow(tapLang)
     const step = continueDemo(activeDemo, { id: tapId, title: tap?.title, text }, ctx)
     if (step) {
@@ -649,6 +726,11 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   async function handleTap(id: string, lang: ReplyLanguage) {
     const [kind, ref] = id.split(':') as [string, string | undefined]
     switch (kind) {
+      case 'optin_yes':
+        return optIn('button', lang)
+      case 'optin_no':
+        trace.intent = 'opt_in_declined'
+        return reply({ kind: 'text', body: COPY.optInDeclined[lang] }, lang)
       case 'menu_talk':
         return handoff('asked_for_human', 'Kisi insaan se baat karna chahte hain', lang)
       case 'menu_courses': {

@@ -51,3 +51,23 @@
   turns:
     - user: 'agar join karke pasand nahi aaya to fees wapas milegi?'
       expect: { must_include: ['7'], handoff: false }
+
+- id: optin-start
+  tags: [opt_in]
+  turns:
+    - user: 'START'
+      expect: { kind: optin, must_include: ['STOP'] }
+
+- id: optin-after-stop
+  tags: [opt_in, opt_out]
+  turns:
+    - user: 'STOP'
+      expect: { kind: optout }
+    - user: 'start'
+      expect: { kind: optin }
+
+- id: optin-not-a-question
+  tags: [opt_in]
+  turns:
+    - user: 'RSCIT course start kab hoga?'
+      expect: { kind: reply }

@@ -65,7 +65,19 @@ Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after t
    - Known gaps: evals did not run (no LLM key), so the tone wording is untested on a real model;
      no screenshots were taken of the new Bot settings fields or the Done state; the trace link
      has no screen yet.
-3. After-hours message on normal replies; opt-in by START keyword or button (not started).
+3. **After-hours line and self opt-in (done).**
+   - A normal reply sent while the institute is closed ends with one line saying when it opens
+     (the owner's after-hours text if set, else ours). Said once a night (`flowState.awayAt`, 12h),
+     and never in the middle of a tap or a booking. Handoffs keep their own after-hours line.
+   - A person can opt in themselves: the whole message START / subscribe / shuru, or the yes button
+     on a one-time question ("Naye batch aur offers ki jaankari bhejein?") sent after their third
+     message. Recorded with source `keyword` or `button` and the time. Their own START undoes their
+     own STOP; staff still cannot. New `optin` decision; `optInContact` in `effects.ts`.
+   - A handoff no longer forgets that the question was asked.
+   - Known gaps: the START word list is fixed in code, not editable like the STOP words; evals did
+     not run (no LLM key); the three e2e scripts were not run here (no Postgres server), though
+     their flows were read and should not be affected; at night an eval reply is longer by the
+     closed line, which could trip a `max_chars` case.
 4. Contacts page, CSV import, bulk tags, saved segments (not started). Agreed: imported contacts
    are left out of campaigns unless the file carries consent and the uploader declares it.
 5. Click-to-WhatsApp ad source and per-campaign admissions (not started). Agreed: the ad

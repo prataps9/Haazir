@@ -3,6 +3,7 @@ import {
   decideReply,
   markBotReplied,
   markHandoff,
+  optInContact,
   optOutContact,
   recordTrace,
   recordUnanswered,
@@ -145,6 +146,15 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
   }
 
   switch (decision.kind) {
+    case 'optin': {
+      // Recorded first: the gate refuses to send to someone still marked as opted out.
+      await optInContact(deps.db, row.conversation.contactId, decision.source, now)
+      const sent = await send()
+      await recordTrace(deps.db, job, decision.trace, undefined, sent)
+      await rememberLanguage(deps.db, row.conversation.contactId, decision.trace.language)
+      await announceConversation(deps.db, deps.events, job.orgId, row.conversation.id)
+      return { replied: !!sent, decision: 'optin' }
+    }
     case 'optout': {
       await optOutContact(deps.db, row.conversation.contactId, now)
       const sent = await send(true)
@@ -166,6 +176,22 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
       const sent = await send()
       // After the reply, so the brochure or pin arrives below the message that promised it.
       await applyActions(deps, actionTurn, decision.actions)
+      if (sent && decision.followUp) {
+        const extra = await queueOutbound(
+          { db: deps.db, outboundQueue: deps.queues.outbound },
+          {
+            orgId: job.orgId,
+            conversationId: row.conversation.id,
+            content: decision.followUp,
+            sentBy: 'bot',
+            now,
+          },
+        ).catch((err: Error) => {
+          deps.log.warn({ err: err.message }, 'opt-in question not sent')
+          return null
+        })
+        if (extra) await announceMessage(deps.db, deps.events, job.orgId, extra.id, 'message:new')
+      }
       await markBotReplied(deps.db, row.conversation.id, now, decision.flowState)
       await announceConversation(deps.db, deps.events, job.orgId, row.conversation.id)
       await recordTrace(deps.db, job, decision.trace, undefined, sent)

@@ -271,6 +271,8 @@
       "admission": "at admission",
       "staff": "recorded by the team",
       "team": "team member",
+      "keyword": "they wrote START",
+      "button": "they tapped yes",
       "other": "other"
     },
     "recordYes": "They said yes to updates",

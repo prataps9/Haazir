@@ -41,6 +41,31 @@ export const COPY = {
     hi: 'माफ़ कीजिए, मैं समझ नहीं पाया। आप किस बारे में जानना चाहते हैं?',
     en: "Sorry, I didn't quite get that. What would you like to know?",
   },
+  /** Added to a normal reply when the institute is closed (the bot itself is always there). */
+  closedNow: {
+    hinglish: 'Abhi institute band hai, {when} khulega. Tab tak aap mujhse pooch sakte hain.',
+    hi: 'अभी इंस्टीट्यूट बंद है, {when} खुलेगा। तब तक आप मुझसे पूछ सकते हैं।',
+    en: 'The institute is closed right now and opens {when}. You can keep asking me here.',
+  },
+  optInAsk: {
+    hinglish:
+      'Naye batch aur offers ki jaankari WhatsApp par bhejein? Jab chahein STOP likh kar band kar sakte hain.',
+    hi: 'नए बैच और ऑफ़र की जानकारी WhatsApp पर भेजें? जब चाहें STOP लिखकर बंद कर सकते हैं।',
+    en: 'May we send you news of new batches and offers on WhatsApp? You can stop them any time by writing STOP.',
+  },
+  optInYes: { hinglish: 'Haan, bhejein', hi: 'हाँ, भेजें', en: 'Yes, send them' },
+  optInNo: { hinglish: 'Nahi', hi: 'नहीं', en: 'No' },
+  optedIn: {
+    hinglish:
+      'Theek hai ji, naye batch aur offers ki jaankari aapko bhejenge. Band karne ke liye STOP likhein.',
+    hi: 'ठीक है जी, नए बैच और ऑफ़र की जानकारी आपको भेजेंगे। बंद करने के लिए STOP लिखें।',
+    en: "Done. We'll send you news of new batches and offers. Write STOP to end them.",
+  },
+  optInDeclined: {
+    hinglish: 'Theek hai ji, hum sirf aapke sawaalon ke jawab denge.',
+    hi: 'ठीक है जी, हम सिर्फ़ आपके सवालों के जवाब देंगे।',
+    en: "No problem. We'll only answer your questions.",
+  },
   privacy: {
     hinglish: 'Aapki jaankari kaise rakhi jaati hai:',
     hi: 'आपकी जानकारी कैसे रखी जाती है:',

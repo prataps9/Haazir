@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { botConfigs, conversations, knowledgeChunks, knowledgeSources, messages } from '@haazir/db'
+import {
+  botConfigs,
+  contacts,
+  conversations,
+  knowledgeChunks,
+  knowledgeSources,
+  messages,
+} from '@haazir/db'
 import { decideReply, isKeywordMessage, type PipelineDeps } from '../pipeline'
 import { createFixture, hashEmbedding, models, router, scripted } from './helpers'
 
@@ -384,5 +391,129 @@ describe('bot settings the owner can change', () => {
     })
     const second = await decideReply(deps(null), await f.inbound('namaste'))
     expect(second.kind === 'reply' && second.content.body).not.toContain('shiksha.example')
+  })
+})
+
+describe('when the institute is closed', () => {
+  const CLOSED =
+    'Abhi institute band hai, kal 8:00 AM se khulega. Tab tak aap mujhse pooch sakte hain.'
+
+  it('a normal reply at night says so once, and still answers', async () => {
+    const d = await decideReply(deps(null, MONDAY_1140PM_IST), await f.inbound('namaste'))
+    expect(d.kind).toBe('reply')
+    if (d.kind !== 'reply') return
+    expect(d.content.body).toContain('aapka swagat hai')
+    expect(d.content.body.endsWith(CLOSED)).toBe(true)
+    expect(d.flowState?.awayAt).toBe(MONDAY_1140PM_IST.toISOString())
+
+    // The worker stores flowState; the next reply the same night doesn't repeat the line.
+    await f.db.update(conversations).set({ flowState: { ...d.flowState } })
+    const later = new Date(MONDAY_1140PM_IST.getTime() + 5 * 60_000)
+    const again = await decideReply(deps(null, later), await f.inbound('namaste'))
+    expect(again.kind === 'reply' && again.content.body).not.toContain('band hai')
+    expect(again.kind === 'reply' && again.flowState?.awayAt).toBe(MONDAY_1140PM_IST.toISOString())
+  })
+
+  it('says it again the next night', async () => {
+    await f.db
+      .update(conversations)
+      .set({ flowState: { lang: 'hinglish', awayAt: MONDAY_1140PM_IST.toISOString() } })
+    const nextNight = new Date(MONDAY_1140PM_IST.getTime() + 24 * 60 * 60_000)
+    const d = await decideReply(deps(null, nextNight), await f.inbound('namaste'))
+    expect(d.kind === 'reply' && d.content.body).toContain('Abhi institute band hai')
+  })
+
+  it('during the day nothing is added', async () => {
+    const d = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(d.kind === 'reply' && d.content.body).not.toContain('band hai')
+    expect(d.kind === 'reply' && d.flowState?.awayAt).toBeUndefined()
+  })
+
+  it("the owner's own after-hours words are used when set", async () => {
+    await f.db.update(botConfigs).set({ afterHoursMessage: { hinglish: 'Hum {when} milenge.' } })
+    const d = await decideReply(deps(null, MONDAY_1140PM_IST), await f.inbound('namaste'))
+    expect(d.kind === 'reply' && d.content.body.endsWith('Hum kal 8:00 AM se milenge.')).toBe(true)
+  })
+
+  it('a button tap in the middle of something is not interrupted by it', async () => {
+    const turn = await f.inbound('Courses dekhein', {
+      type: 'interactive',
+      interactive: { kind: 'button_reply', id: 'menu_courses', title: 'Courses dekhein' },
+    })
+    const d = await decideReply(deps(null, MONDAY_1140PM_IST), turn)
+    expect(d.kind === 'reply' && d.content.body).not.toContain('band hai')
+  })
+})
+
+describe('consent for updates, given by the person', () => {
+  it('START opts them in, with where it came from', async () => {
+    const d = await decideReply(deps(null), await f.inbound('Start'))
+    expect(d).toMatchObject({ kind: 'optin', source: 'keyword', trace: { intent: 'opt_in' } })
+    if (d.kind === 'optin') expect(d.content.body).toContain('Write STOP')
+  })
+
+  it('confirms in the language they were last answered in', async () => {
+    await f.db.update(contacts).set({ language: 'hinglish' })
+    const d = await decideReply(deps(null), await f.inbound('START'))
+    expect(d.kind === 'optin' && d.content.body).toContain('STOP likhein')
+  })
+
+  it('START undoes their own STOP', async () => {
+    await f.db.update(contacts).set({ optInStatus: 'opted_out', optedOutAt: MONDAY_11AM_IST })
+    const d = await decideReply(deps(null), await f.inbound('START'))
+    expect(d.kind).toBe('optin')
+  })
+
+  it('a question that merely contains "start" is not consent', async () => {
+    const d = await decideReply(deps(null), await f.inbound('course start kab hoga'))
+    expect(d.kind).not.toBe('optin')
+  })
+
+  it('someone already opted in who writes START is answered normally', async () => {
+    await f.db.update(contacts).set({ optInStatus: 'opted_in' })
+    const d = await decideReply(deps(null), await f.inbound('start'))
+    expect(d.kind).not.toBe('optin')
+  })
+
+  it('asks once, on the third message, and never again', async () => {
+    const first = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(first.kind === 'reply' && first.followUp).toBeUndefined()
+    await f.inbound('ji')
+    const third = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(third.kind).toBe('reply')
+    if (third.kind !== 'reply') return
+    expect(third.followUp).toMatchObject({
+      kind: 'buttons',
+      buttons: [
+        { id: 'optin_yes', title: 'Haan, bhejein' },
+        { id: 'optin_no', title: 'Nahi' },
+      ],
+    })
+    expect(third.flowState?.optInAsked).toBe(true)
+
+    await f.db.update(conversations).set({ flowState: { ...third.flowState } })
+    const fourth = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(fourth.kind === 'reply' && fourth.followUp).toBeUndefined()
+    expect(fourth.kind === 'reply' && fourth.flowState?.optInAsked).toBe(true)
+  })
+
+  it('does not ask someone who already answered: yes, or STOP', async () => {
+    await f.inbound('a')
+    await f.inbound('b')
+    await f.db.update(contacts).set({ optInStatus: 'opted_in' })
+    const d = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(d.kind === 'reply' && d.followUp).toBeUndefined()
+  })
+
+  it('the yes button opts in; the no button is thanked and left alone', async () => {
+    const tap = (id: string, title: string) =>
+      f.inbound(title, { type: 'interactive', interactive: { kind: 'button_reply', id, title } })
+    const yes = await decideReply(deps(null), await tap('optin_yes', 'Haan, bhejein'))
+    expect(yes).toMatchObject({ kind: 'optin', source: 'button' })
+    const no = await decideReply(deps(null), await tap('optin_no', 'Nahi'))
+    expect(no).toMatchObject({
+      kind: 'reply',
+      content: { body: 'Theek hai ji, hum sirf aapke sawaalon ke jawab denge.' },
+    })
   })
 })

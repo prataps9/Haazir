@@ -90,7 +90,8 @@ export async function markHandoff(
       handoffReason: reason,
       handoffSummary: summary.slice(0, 200),
       handoffAt: now,
-      flowState: null,
+      // The half-finished booking goes; that we already asked about updates stays.
+      flowState: sql`case when ${conversations.flowState}->>'optInAsked' = 'true' then '{"optInAsked":true}'::jsonb else null end`,
     })
     .where(eq(conversations.id, conversationId))
 }
@@ -126,6 +127,19 @@ export async function optOutContact(db: AnyDatabase, contactId: string, now: Dat
   await db
     .update(contacts)
     .set({ optInStatus: 'opted_out', optedOutAt: now })
+    .where(eq(contacts.id, contactId))
+}
+
+/** Consent the person gave themselves, with where it came from and when (spec §19). */
+export async function optInContact(
+  db: AnyDatabase,
+  contactId: string,
+  source: 'keyword' | 'button',
+  now: Date,
+) {
+  await db
+    .update(contacts)
+    .set({ optInStatus: 'opted_in', optInSource: source, optInAt: now, optedOutAt: null })
     .where(eq(contacts.id, contactId))
 }
 

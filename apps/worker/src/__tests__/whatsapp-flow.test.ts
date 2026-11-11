@@ -373,6 +373,47 @@ describe("the brain's decisions, carried out", () => {
     expect(graph.sent).toHaveLength(1)
   })
 
+  it('START after STOP: consent is recorded with its source and the confirmation gets through', async () => {
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1', body: 'STOP' }) })
+    await runQueues()
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN2', body: 'START' }) })
+    await runQueues()
+    const [contact] = await h.db.select().from(contacts)
+    expect(contact).toMatchObject({
+      optInStatus: 'opted_in',
+      optInSource: 'keyword',
+      optedOutAt: null,
+    })
+    expect(contact?.optInAt).toBeInstanceOf(Date)
+    expect(graph.sent).toHaveLength(2)
+    expect(JSON.stringify(graph.sent[1]!.body)).toContain('Write STOP')
+  })
+
+  it('the third message brings one question about updates, after the answer', async () => {
+    for (const n of [1, 2, 3, 4]) {
+      await processInbound(h.deps, {
+        payload: inboundText({ id: `wamid.IN${n}`, body: `sawaal ${n}` }),
+      })
+      await runQueues()
+    }
+    // Four answers and exactly one question.
+    expect(graph.sent).toHaveLength(5)
+    const asked = graph.sent.filter((m) => JSON.stringify(m.body).includes('optin_yes'))
+    expect(asked).toHaveLength(1)
+    expect(graph.sent.indexOf(asked[0]!)).toBe(3)
+  })
+
+  it('a handoff keeps the fact that we already asked about updates', async () => {
+    await h.db.insert(contacts).values({ orgId: h.org.id, waId: '919800000001' })
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await h.db.update(conversations).set({ flowState: { optInAsked: true, lang: 'hinglish' } })
+    const [c] = await h.db.select().from(conversations)
+    const { markHandoff } = await import('@haazir/ai-core')
+    await markHandoff(h.db, c!.id, 'upset', 'x', new Date())
+    const [after] = await h.db.select().from(conversations)
+    expect(after?.flowState).toEqual({ optInAsked: true })
+  })
+
   it('handoff: tells the person, puts the chat in human mode for 2 hours, and counts the question', async () => {
     h.deps.models = null // no AI configured: everything goes to staff
     await processInbound(h.deps, {

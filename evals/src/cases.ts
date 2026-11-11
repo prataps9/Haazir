@@ -13,7 +13,7 @@ export const expectSchema = z
     intent: oneOrMany(z.enum(INTENTS)).optional(),
     language: z.enum(['hi', 'en', 'hinglish']).optional(),
     script: z.enum(['devanagari', 'latin']).optional(),
-    kind: z.enum(['reply', 'handoff', 'optout', 'silent']).optional(),
+    kind: z.enum(['reply', 'handoff', 'optout', 'optin', 'silent']).optional(),
     handoff: z.boolean().optional(),
     handoff_reason: z.string().optional(),
     /** Every one must appear (case-insensitive; "4500" matches "₹4,500"). */

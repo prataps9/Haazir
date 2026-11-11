@@ -366,7 +366,6 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
         handoffSummary: null,
         handoffAt: null,
         unreadCount: 0,
-        flowState: null,
       })
       .where(and(eq(conversations.id, id), eq(conversations.orgId, org.id)))
     await audit(db, req, { action: 'conversation.close', entity: 'conversation', entityId: id })
