@@ -201,7 +201,7 @@
     "windowMinutes_one": "फ्री जवाब का समय: {{count}} मिनट बाकी",
     "windowMinutes_other": "फ्री जवाब का समय: {{count}} मिनट बाकी",
     "windowClosed": "24 घंटे का फ्री समय खत्म",
-    "windowClosedBody": "अब सिर्फ़ मंज़ूर Template भेजा जा सकता है।",
+    "windowClosedBody": "अब सिर्फ़ मंज़ूर टेम्पलेट भेजा जा सकता है।",
     "sendTemplate": "टेम्पलेट भेजें",
     "optedOut": "इन्होंने मैसेज बंद करवाए हैं। इन्हें मैसेज नहीं भेजा जा सकता।",
     "failed": "नहीं गया: {{reason}}",
@@ -221,7 +221,7 @@
       "read": "पढ़ लिया"
     },
     "errors": {
-      "WINDOW_CLOSED": "24 घंटे का समय खत्म हो गया है। Template भेजना होगा।",
+      "WINDOW_CLOSED": "24 घंटे का समय खत्म हो गया है। टेम्पलेट भेजना होगा।",
       "OPTED_OUT": "इन्होंने मैसेज बंद करवाए हैं।",
       "generic": "मैसेज नहीं गया। इंटरनेट देखकर दोबारा भेजें।"
     },
@@ -811,7 +811,26 @@
     "saved": "सेव हो गया",
     "sample": "उदाहरण {{n}}",
     "preview": "WhatsApp पर ऐसा दिखेगा",
-    "previewEmpty": "आपका मैसेज यहाँ दिखेगा।"
+    "previewEmpty": "आपका मैसेज यहाँ दिखेगा।",
+    "variableLabels": {
+      "student_name": "विद्यार्थी का नाम",
+      "name": "नाम",
+      "contact_name": "नाम",
+      "course": "कोर्स",
+      "batch": "बैच",
+      "date": "तारीख़",
+      "due_date": "देय तारीख़",
+      "time": "समय",
+      "address": "पता",
+      "amount": "रकम (₹)",
+      "link": "भुगतान लिंक",
+      "receipt_no": "रसीद नंबर",
+      "enquiries": "पूछताछ",
+      "demos": "डेमो",
+      "admissions": "एडमिशन",
+      "fees": "फीस मिली (₹)",
+      "other": "कुछ और"
+    }
   },
   "growthErrors": {
     "no_number": "पहले WhatsApp नंबर जोड़ें।",
@@ -878,7 +897,7 @@
       "contact_name": "उनका नाम",
       "course": "उनका कोर्स",
       "batch": "उनका बैच",
-      "custom": "सबके लिए एक ही बात"
+      "custom": "सबके लिए एक जैसा"
     },
     "blankText": "क्या लिखें",
     "blankFallback": "पता न हो तो लिखें",

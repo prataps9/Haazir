@@ -55,7 +55,8 @@ export function DailySummaryCard() {
   return (
     <Card title={t('settings.summaryTitle')} description={t('settings.summaryBody')}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <div className="flex items-end gap-2">
+        {/* The button lines up with the field, not with its hint below. */}
+        <div className="flex items-start gap-2">
           <Input
             className="flex-1"
             label={t('settings.summaryPhone')}
@@ -65,7 +66,13 @@ export function DailySummaryCard() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
-          <Button type="submit" size="md" variant="secondary" loading={save.isPending}>
+          <Button
+            type="submit"
+            size="md"
+            variant="secondary"
+            loading={save.isPending}
+            className="mt-[26px]"
+          >
             {t('common.save')}
           </Button>
         </div>

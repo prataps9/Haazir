@@ -156,7 +156,13 @@ function Picker({ conversationId, onSent }: { conversationId: string; onSent(): 
           {values.map((v, i) => (
             <Input
               key={i}
-              label={t('chat.blankN', { n: i + 1 })}
+              label={
+                picked.variables[i]
+                  ? t(`templates.variableLabels.${picked.variables[i]}`, {
+                      defaultValue: t('chat.blankN', { n: i + 1 }),
+                    })
+                  : t('chat.blankN', { n: i + 1 })
+              }
               value={v}
               maxLength={200}
               required

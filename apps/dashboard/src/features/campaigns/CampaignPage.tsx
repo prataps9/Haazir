@@ -268,9 +268,16 @@ function Builder({ campaign: c }: { campaign: CampaignView }) {
         {template && n > 0 && (
           <Section n={3} title={t('campaigns.sections.blanks')}>
             {blanks.map((b, i) => (
-              <div key={i} className="grid gap-2 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-end">
+              <div key={i} className="grid gap-2 sm:grid-cols-[240px_minmax(0,1fr)] sm:items-end">
                 <Select
-                  label={t('campaigns.blankN', { n: i + 1 })}
+                  label={
+                    template.variables[i]
+                      ? `${t('campaigns.blankN', { n: i + 1 })}: ${t(
+                          `templates.variableLabels.${template.variables[i]}`,
+                          { defaultValue: template.variables[i] },
+                        )}`
+                      : t('campaigns.blankN', { n: i + 1 })
+                  }
                   value={b.source}
                   onChange={(e) =>
                     setMap(

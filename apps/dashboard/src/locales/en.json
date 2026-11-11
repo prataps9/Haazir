@@ -811,7 +811,26 @@
     "saved": "Saved",
     "sample": "example {{n}}",
     "preview": "How it looks on WhatsApp",
-    "previewEmpty": "Your message appears here."
+    "previewEmpty": "Your message appears here.",
+    "variableLabels": {
+      "student_name": "Student's name",
+      "name": "Name",
+      "contact_name": "Name",
+      "course": "Course",
+      "batch": "Batch",
+      "date": "Date",
+      "due_date": "Due date",
+      "time": "Time",
+      "address": "Address",
+      "amount": "Amount (₹)",
+      "link": "Payment link",
+      "receipt_no": "Receipt number",
+      "enquiries": "Enquiries",
+      "demos": "Demos",
+      "admissions": "Admissions",
+      "fees": "Fees received (₹)",
+      "other": "Something else"
+    }
   },
   "growthErrors": {
     "no_number": "Connect a WhatsApp number first.",
@@ -878,7 +897,7 @@
       "contact_name": "Their name",
       "course": "Their course",
       "batch": "Their batch",
-      "custom": "Same text for everyone"
+      "custom": "Same for everyone"
     },
     "blankText": "Text",
     "blankFallback": "If not known, write",
