@@ -19,23 +19,16 @@ import {
 import {
   AppError,
   CAMPAIGN_VARIABLE_SOURCES,
-  LEAD_STAGES,
   partsOf,
   variableCount,
   type CampaignAudience,
 } from '@haazir/shared'
 import { requireRole } from '../auth/middleware'
 import type { AppDeps } from '../deps'
+import { audienceSchema } from '../lib/audience'
 import { audit, orgOf, userOf, uuidParam } from '../lib/http'
 
-const audience = z
-  .object({
-    tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
-    stages: z.array(z.enum(LEAD_STAGES)).max(LEAD_STAGES.length).optional(),
-    courseIds: z.array(z.uuid()).max(50).optional(),
-    batchIds: z.array(z.uuid()).max(100).optional(),
-  })
-  .strict()
+const audience = audienceSchema
 
 const variableMap = z
   .array(

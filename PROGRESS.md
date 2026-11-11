@@ -78,8 +78,27 @@ Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after t
      not run (no LLM key); the three e2e scripts were not run here (no Postgres server), though
      their flows were read and should not be affected; at night an eval reply is longer by the
      closed line, which could trip a `max_chars` case.
-4. Contacts page, CSV import, bulk tags, saved segments (not started). Agreed: imported contacts
-   are left out of campaigns unless the file carries consent and the uploader declares it.
+4. **Contacts page, list import, saved segments (done).** Migration `0008_segments`.
+   - `/contacts` (everyone on the team): search, filter by consent, tag and stage, tick people and
+     add or remove a tag on all of them. Owners and admins can download the list as CSV and bring
+     one in. Screenshots in `docs/screenshots/contacts/`.
+   - Import: the CSV is read in the browser (phone, name, tags, consent columns, English or Hindi
+     headings); numbers are tidied by the new `normalisePhone` in `@haazir/shared`; repeats merge;
+     unreadable rows are reported by row number. People from a list stay "not asked" and out of
+     campaigns unless the file has a consent column and the uploader switches on "We have their
+     consent"; then the source is `import`. A list never undoes a STOP. Every import is in
+     `audit_logs` with the declaration.
+   - Segments: a named set of the campaign filters (`segments` table, owners and admins). The
+     count beside each comes from `audienceCount`; the campaign builder can start from one, and
+     shows the tags in use as chips. The list itself uses `contactsWhere`, beside `audienceWhere`
+     in `packages/messaging/src/campaigns.ts`.
+   - Verified: unit and API tests (import, consent, tenancy), all three e2e scripts on real
+     Postgres and Redis, and an import through the browser.
+   - Known gaps: a segment saves only the tag and stage chosen on the Contacts page (course and
+     batch come from the campaign builder); no rename screen for segments (the API has it); 2,000
+     rows per import; the list pages by offset, 50 at a time; `contacts.customFields` still has no
+     screen. Locally the mock Meta server kept an old `apps/api/.data/mock-templates.json` that
+     made the campaign e2e fail on a fresh database; removing that file fixes it.
 5. Click-to-WhatsApp ad source and per-campaign admissions (not started). Agreed: the ad
    reference is stored on the lead.
 6. Follow-up sequences (not started). Agreed: at most 3 steps, off by default, cost shown.

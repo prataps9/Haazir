@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { campaigns, templates } from '@haazir/db'
 import { campaignRecipients, contacts, messages, type AnyDatabase } from '@haazir/db'
 import {
@@ -62,6 +62,32 @@ function audienceFilters(orgId: string, audience: CampaignAudience): SQL[] {
     )
   }
   return where
+}
+
+/**
+ * The contacts list: the same filters a campaign uses, plus search and a
+ * consent filter. It shows everyone who matches, so staff can see who is
+ * left out of campaigns and why; it never decides who is sent to.
+ */
+export function contactsWhere(
+  orgId: string,
+  filter: {
+    audience?: CampaignAudience
+    consent?: 'opted_in' | 'opted_out' | 'unknown'
+    q?: string
+  },
+): SQL {
+  return and(
+    ...audienceFilters(orgId, filter.audience ?? {}),
+    filter.consent ? eq(contacts.optInStatus, filter.consent) : undefined,
+    filter.q
+      ? or(
+          ilike(contacts.name, `%${filter.q}%`),
+          ilike(contacts.profileName, `%${filter.q}%`),
+          ilike(contacts.waId, `%${filter.q.replace(/^\+/, '')}%`),
+        )
+      : undefined,
+  )!
 }
 
 /** The audience: opted-in contacts only, enforced here and nowhere else (spec §16.8). */

@@ -26,6 +26,7 @@ import { Select } from '@/components/Select'
 import { Skeleton } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { cn } from '@/lib/cn'
+import { useContactTags, useSegments } from '@/lib/contacts'
 import { useCourses } from '@/lib/crm'
 import { formatCount, formatPaise } from '@/lib/format'
 import {
@@ -131,6 +132,8 @@ function Builder({ campaign: c }: { campaign: CampaignView }) {
   }, [draft, draftKey, savedKey, saveDraft, c.id])
 
   const count = useAudienceCount(audience)
+  const segments = useSegments()
+  const knownTags = (useContactTags().data ?? []).slice(0, 12)
   const estimate = useEstimate(templateId ? c.id : undefined, savedKey)
   const preview = usePreview(templateId ? c.id : undefined, savedKey)
   const ready =
@@ -211,6 +214,26 @@ function Builder({ campaign: c }: { campaign: CampaignView }) {
         </Section>
 
         <Section n={2} title={t('campaigns.sections.audience')}>
+          {segments.data && segments.data.length > 0 && (
+            <Select
+              label={t('campaigns.segment')}
+              hint={t('campaigns.segmentHint')}
+              value=""
+              onChange={(e) => {
+                const s = segments.data?.find((x) => x.id === e.target.value)
+                if (!s) return
+                setAudience(s.filters)
+                setTagText((s.filters.tags ?? []).join(', '))
+              }}
+            >
+              <option value="">{t('campaigns.segmentPick')}</option>
+              {segments.data.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Input
             label={t('campaigns.tags')}
             hint={t('campaigns.tagsHint')}
@@ -224,6 +247,19 @@ function Builder({ campaign: c }: { campaign: CampaignView }) {
               setAudience({ ...audience, tags: tags.length ? tags : undefined })
             }}
           />
+          {knownTags.length > 0 && (
+            <Chips
+              legend={t('campaigns.tagsInUse')}
+              options={knownTags.map((x) => ({ value: x.tag, label: x.tag }))}
+              selected={audience.tags ?? []}
+              onToggle={(v) => {
+                const now = audience.tags ?? []
+                const next = now.includes(v) ? now.filter((x) => x !== v) : [...now, v]
+                setTagText(next.join(', '))
+                setAudience({ ...audience, tags: next.length ? next : undefined })
+              }}
+            />
+          )}
           <Chips
             legend={t('campaigns.stages')}
             options={LEAD_STAGES.map((s) => ({ value: s, label: t(`stages.${s}`) }))}

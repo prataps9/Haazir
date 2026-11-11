@@ -7,6 +7,7 @@ import {
   conversations,
   knowledgeFaqs,
   knowledgeSources,
+  segments,
   templates,
   unansweredQuestions,
 } from '@haazir/db'
@@ -133,6 +134,11 @@ describe('tenant isolation: org A can never see or change org B', () => {
       .values({ orgId: b.org.id, name: 'B only', templateId: templateB!.id })
       .returning()
 
+    const [segmentB] = await t.db
+      .insert(segments)
+      .values({ orgId: b.org.id, name: 'B only', filters: {} })
+      .returning()
+
     const attempts = [
       owner.get(`/api/v1/conversations/${b.conversation.id}`),
       owner.get(`/api/v1/conversations/${b.conversation.id}/messages`),
@@ -164,6 +170,8 @@ describe('tenant isolation: org A can never see or change org B', () => {
       owner.post(`/api/v1/campaigns/${campaignB!.id}/cancel`),
       owner.delete(`/api/v1/campaigns/${campaignB!.id}`),
       owner.post('/api/v1/campaigns').send({ name: 'x', templateId: templateB!.id }),
+      owner.patch(`/api/v1/segments/${segmentB!.id}`).send({ name: 'hacked' }),
+      owner.delete(`/api/v1/segments/${segmentB!.id}`),
     ]
     const results = await Promise.all(attempts)
     results.forEach((res, i) => expect(res.status, `attempt ${i + 1}`).toBe(404))

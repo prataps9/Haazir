@@ -10,6 +10,7 @@ import { adminRouter } from './routes/admin'
 import { analyticsRouter } from './routes/analytics'
 import { botRouter } from './routes/bot'
 import { campaignsRouter } from './routes/campaigns'
+import { segmentsRouter } from './routes/segments'
 import { contactsRouter } from './routes/contacts'
 import { conversationsRouter } from './routes/conversations'
 import { coursesRouter } from './routes/courses'
@@ -90,6 +91,7 @@ export function createApp(deps: AppDeps) {
   api.use(analyticsRouter(deps))
   api.use(templatesRouter(deps))
   api.use(campaignsRouter(deps))
+  api.use(segmentsRouter(deps))
 
   app.use('/api/v1', api)
 

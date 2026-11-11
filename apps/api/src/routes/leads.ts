@@ -14,6 +14,7 @@ import {
 } from '@haazir/db'
 import { AppError, LEAD_SOURCES, LEAD_STAGES, LOST_REASONS } from '@haazir/shared'
 import type { AppDeps } from '../deps'
+import { csvCell } from '../lib/audience'
 import { audit, orgOf, userOf, uuidParam } from '../lib/http'
 import { istDate } from '../lib/time'
 
@@ -39,13 +40,6 @@ const leadView = {
     waId: contacts.waId,
   },
   conversationId: conversations.id,
-}
-
-const csvCell = (v: unknown) => {
-  const s = v == null ? '' : v instanceof Date ? v.toISOString() : String(v)
-  // A leading = + - @ turns a cell into a formula in Excel: neutralise it.
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s
-  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
 /** Leads (spec §16.5): every enquiry, from the bot's first reply to admission. */

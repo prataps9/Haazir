@@ -81,6 +81,7 @@ describe('migrations', () => {
       'organizations',
       'plans',
       'push_subscriptions',
+      'segments',
       'sessions',
       'students',
       'super_admins',

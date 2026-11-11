@@ -103,3 +103,24 @@ export const campaignRecipients = pgTable(
       .where(sql`${t.status} = 'pending'`),
   ],
 )
+
+/**
+ * A saved audience ("NEET enquiries", "Tally batch parents"): filters, not a
+ * list of people, so it always means whoever matches today. Who is actually
+ * sent to is still decided by `audienceWhere`, opted-in contacts only.
+ */
+export const segments = pgTable(
+  'segments',
+  {
+    id: id(),
+    orgId: uuid()
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text().notNull(),
+    filters: jsonb().$type<CampaignAudience>().notNull().default({}),
+    createdByUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  // Leads with org_id, so it doubles as the tenant index.
+  (t) => [uniqueIndex('segments_org_name_unique').on(t.orgId, t.name)],
+)

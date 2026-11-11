@@ -1,4 +1,5 @@
 import {
+  AddressBookIcon,
   ChalkboardTeacherIcon,
   ChartBarIcon,
   ChatsCircleIcon,
@@ -46,6 +47,7 @@ export const PRIMARY_NAV: NavItem[] = [
 export const MORE_NAV: NavItem[][] = [
   [
     { to: '/courses', key: 'courses', icon: GraduationCapIcon },
+    { to: '/contacts', key: 'contacts', icon: AddressBookIcon },
     { to: '/campaigns', key: 'campaigns', icon: MegaphoneIcon, roles: MANAGERS },
     { to: '/templates', key: 'templates', icon: CardsIcon, roles: MANAGERS },
     { to: '/knowledge', key: 'knowledge', icon: ChalkboardTeacherIcon },
