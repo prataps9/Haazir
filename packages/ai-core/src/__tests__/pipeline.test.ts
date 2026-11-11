@@ -46,7 +46,7 @@ describe('answers from the database, never from memory', () => {
       intent: 'fee_query',
       language: 'hinglish',
       model: 'mock-smart',
-      promptVersion: 'answer-v2',
+      promptVersion: 'answer-v3',
     })
     expect(d.trace.toolCalls.map((t) => t.name)).toEqual(['get_course_details'])
     expect(d.trace.inputTokens).toBeGreaterThan(0)
@@ -314,5 +314,75 @@ describe('retrieval feeds the answer', () => {
     expect(d.kind).toBe('reply')
     if (d.kind === 'reply') expect(d.trace.retrievedChunkIds).toHaveLength(1)
     expect(JSON.stringify(smart.doGenerateCalls[0]!.prompt)).toContain('Lab mein 40 computer hain')
+  })
+})
+
+describe('bot settings the owner can change', () => {
+  const ask = async (text: string, lang: 'hi' | 'en' | 'hinglish') => {
+    const smart = scripted({ text: lang === 'hi' ? 'जी, बताइए।' : 'Ji, bataiye.' })
+    const d = await decideReply(
+      deps(
+        models(
+          router({
+            intent: 'other',
+            language: lang,
+            script: lang === 'hi' ? 'devanagari' : 'latin',
+            confidence: 0.9,
+          }),
+          smart,
+        ),
+      ),
+      await f.inbound(text),
+    )
+    return { d, prompt: JSON.stringify(smart.doGenerateCalls[0]?.prompt ?? '') }
+  }
+
+  it('a formal tone reaches the prompt; warm is the default', async () => {
+    const warm = await ask('Certificate milta hai kya?', 'hinglish')
+    expect(warm.prompt).toContain('Friendly and respectful')
+    await f.db.update(botConfigs).set({ tone: 'formal' })
+    const formal = await ask('Certificate kab milta hai?', 'hinglish')
+    expect(formal.prompt).toContain('Polite and formal')
+    expect(formal.prompt).not.toContain('Friendly and respectful')
+  })
+
+  it('with Hindi switched off, a Devanagari message is answered in Hinglish', async () => {
+    await f.db.update(botConfigs).set({ languages: ['hinglish', 'en'] })
+    const { d, prompt } = await ask('सर्टिफिकेट मिलता है क्या?', 'hi')
+    expect(prompt).toContain('replies only in Hinglish')
+    expect(d).toMatchObject({ kind: 'reply', trace: { language: 'hinglish' } })
+    if (d.kind === 'reply') expect(d.flowState?.lang).toBe('hinglish')
+  })
+
+  it('the fixed messages follow the allowed languages too', async () => {
+    await f.db.update(botConfigs).set({ languages: ['en'] })
+    const d = await decideReply(deps(null), await f.inbound('STOP'))
+    expect(d).toMatchObject({
+      kind: 'optout',
+      content: { body: "Okay, we won't message you again." },
+    })
+  })
+
+  it('the privacy notice link goes on the first message a person is sent, and only that one', async () => {
+    await f.db.update(botConfigs).set({ privacyNoticeUrl: 'https://shiksha.example/privacy' })
+    const first = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(first.kind).toBe('reply')
+    if (first.kind !== 'reply') return
+    expect(first.content.body).toMatch(
+      /Aapki jaankari kaise rakhi jaati hai: https:\/\/shiksha\.example\/privacy$/,
+    )
+    expect(first.content.kind).toBe('buttons')
+
+    await f.db.insert(messages).values({
+      orgId: f.org.id,
+      conversationId: f.conversation.id,
+      direction: 'out',
+      type: 'text',
+      body: first.content.body,
+      sentBy: 'bot',
+      status: 'sent',
+    })
+    const second = await decideReply(deps(null), await f.inbound('namaste'))
+    expect(second.kind === 'reply' && second.content.body).not.toContain('shiksha.example')
   })
 })

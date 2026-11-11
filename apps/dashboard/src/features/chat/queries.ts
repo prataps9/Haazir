@@ -9,7 +9,7 @@ import { api, patch, post } from '@/lib/api'
 import { upsertConversation, upsertMessage } from '@/lib/socket'
 import type { Contact, ConversationSummary, Message } from '@/lib/types'
 
-export type Filter = 'all' | 'human' | 'unread' | 'demo_booked' | 'admitted'
+export type Filter = 'all' | 'human' | 'unread' | 'demo_booked' | 'admitted' | 'closed'
 
 export function useConversations(orgId: string | undefined, filter: Filter, q: string) {
   return useInfiniteQuery({
@@ -19,6 +19,7 @@ export function useConversations(orgId: string | undefined, filter: Filter, q: s
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams()
       if (filter === 'human') params.set('mode', 'human')
+      if (filter === 'closed') params.set('mode', 'closed')
       if (filter === 'unread') params.set('unread', 'true')
       if (filter === 'demo_booked' || filter === 'admitted') params.set('stage', filter)
       if (q) params.set('q', q)
@@ -130,6 +131,15 @@ export function useModeChange(conversationId: string) {
       post<ConversationSummary>(
         `/api/v1/conversations/${conversationId}/${to === 'human' ? 'takeover' : 'handback'}`,
       ),
+    onSuccess: (conversation) => upsertConversation(qc, conversation),
+  })
+}
+
+/** "Kaam ho gaya": marks the chat done. The person's next message reopens it. */
+export function useCloseConversation(conversationId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => post<ConversationSummary>(`/api/v1/conversations/${conversationId}/close`),
     onSuccess: (conversation) => upsertConversation(qc, conversation),
   })
 }

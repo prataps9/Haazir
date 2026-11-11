@@ -41,6 +41,11 @@ export const COPY = {
     hi: 'माफ़ कीजिए, मैं समझ नहीं पाया। आप किस बारे में जानना चाहते हैं?',
     en: "Sorry, I didn't quite get that. What would you like to know?",
   },
+  privacy: {
+    hinglish: 'Aapki jaankari kaise rakhi jaati hai:',
+    hi: 'आपकी जानकारी कैसे रखी जाती है:',
+    en: 'How we keep your information:',
+  },
   demo: { hinglish: 'Free demo', hi: 'फ्री डेमो', en: 'Free demo' },
   talk: { hinglish: 'Baat karein', hi: 'बात करें', en: 'Talk to us' },
   courses: { hinglish: 'Courses dekhein', hi: 'कोर्स देखें', en: 'See courses' },

@@ -151,6 +151,8 @@ function BotForm({
   const [lang, setLang] = useState<Lang>('hi')
   const [personaName, setPersonaName] = useState(config.personaName)
   const [tone, setTone] = useState(config.tone)
+  const [languages, setLanguages] = useState<Lang[]>(config.languages)
+  const [privacyUrl, setPrivacyUrl] = useState(config.privacyNoticeUrl ?? '')
   const [greeting, setGreeting] = useState<Localised>(config.greeting)
   const [afterHours, setAfterHours] = useState<Localised>(config.afterHoursMessage)
   const [menu, setMenu] = useState(() =>
@@ -171,6 +173,8 @@ function BotForm({
       {
         personaName,
         tone,
+        languages,
+        privacyNoticeUrl: privacyUrl.trim() || null,
         greeting,
         afterHoursMessage: afterHours,
         mainMenu: menu,
@@ -207,6 +211,33 @@ function BotForm({
               { value: 'warm', label: t('bot.toneWarm') },
               { value: 'formal', label: t('bot.toneFormal') },
             ]}
+          />
+          <fieldset className="flex flex-col gap-1">
+            <legend className="text-small font-semibold text-ink">{t('bot.replyLanguages')}</legend>
+            <p className="text-small text-ink-muted">{t('bot.replyLanguagesHint')}</p>
+            {LANGS.map((l) => (
+              <Switch
+                key={l}
+                label={langName(l)}
+                checked={languages.includes(l)}
+                // The bot must be able to reply in something.
+                disabled={languages.length === 1 && languages.includes(l)}
+                onChange={(on) =>
+                  setLanguages(on ? [...languages, l] : languages.filter((x) => x !== l))
+                }
+              />
+            ))}
+          </fieldset>
+          <Input
+            label={t('bot.privacyUrl')}
+            hint={t('bot.privacyUrlHint')}
+            type="url"
+            inputMode="url"
+            placeholder="https://"
+            pattern="https://.+"
+            value={privacyUrl}
+            onChange={(e) => setPrivacyUrl(e.target.value)}
+            maxLength={300}
           />
         </Section>
 

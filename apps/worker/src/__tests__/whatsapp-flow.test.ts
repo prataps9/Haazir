@@ -328,8 +328,32 @@ describe("the brain's decisions, carried out", () => {
       intent: 'other',
       model: 'mock-smart',
       handedOff: false,
-      promptVersion: 'answer-v2',
+      promptVersion: 'answer-v3',
     })
+  })
+
+  it('links the reply to its trace and remembers the language it was answered in', async () => {
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+    const [trace] = await h.db.select().from(aiTraces)
+    const [reply] = await h.db.select().from(messages).where(eq(messages.direction, 'out'))
+    expect(reply?.aiTraceId).toBe(trace!.id)
+    const [contact] = await h.db.select().from(contacts)
+    expect(contact?.language).toBe(trace!.language)
+  })
+
+  it('a chat marked done opens again on the next message, and the bot answers it', async () => {
+    await processInbound(h.deps, { payload: inboundText({ id: 'wamid.IN1' }) })
+    await runQueues()
+    await h.db.update(conversations).set({ mode: 'closed' })
+
+    await processInbound(h.deps, {
+      payload: inboundText({ id: 'wamid.IN2', body: 'ek aur sawaal' }),
+    })
+    await runQueues()
+    const [conversation] = await h.db.select().from(conversations)
+    expect(conversation?.mode).toBe('bot')
+    expect(graph.sent).toHaveLength(2)
   })
 
   it('STOP: one confirmation, the contact opted out, and silence after that', async () => {

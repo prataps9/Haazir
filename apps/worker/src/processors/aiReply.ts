@@ -6,6 +6,7 @@ import {
   optOutContact,
   recordTrace,
   recordUnanswered,
+  rememberLanguage,
 } from '@haazir/ai-core'
 import { contacts, conversations, messages, whatsappAccounts } from '@haazir/db'
 import {
@@ -125,12 +126,12 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
         },
       )
       await announceMessage(deps.db, deps.events, job.orgId, message.id, 'message:new')
-      return true
+      return message.id
     } catch (err) {
       // Opted out or window closed: correct not to reply, nothing to retry.
       if (err instanceof AppError && (err.code === 'OPTED_OUT' || err.code === 'WINDOW_CLOSED')) {
         deps.log.info({ code: err.code, conversationId: row.conversation.id }, 'reply not sent')
-        return false
+        return null
       }
       throw err
     }
@@ -147,18 +148,19 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
     case 'optout': {
       await optOutContact(deps.db, row.conversation.contactId, now)
       const sent = await send(true)
-      await recordTrace(deps.db, job, decision.trace)
-      return { replied: sent, decision: 'optout' }
+      await recordTrace(deps.db, job, decision.trace, undefined, sent)
+      return { replied: !!sent, decision: 'optout' }
     }
     case 'handoff': {
       const sent = await send()
       await applyActions(deps, actionTurn, decision.actions)
       await markHandoff(deps.db, row.conversation.id, decision.reason, decision.summary, now)
       if (decision.unanswered) await recordUnanswered(deps.db, job.orgId, decision.unanswered, now)
-      await recordTrace(deps.db, job, decision.trace, { reason: decision.reason })
+      await recordTrace(deps.db, job, decision.trace, { reason: decision.reason }, sent)
+      await rememberLanguage(deps.db, row.conversation.contactId, decision.trace.language)
       await announceHandoff(deps, job, decision.reason, decision.summary)
       deps.log.info({ conversationId: row.conversation.id, reason: decision.reason }, 'handed over')
-      return { replied: sent, decision: 'handoff', reason: decision.reason }
+      return { replied: !!sent, decision: 'handoff', reason: decision.reason }
     }
     case 'reply': {
       const sent = await send()
@@ -166,8 +168,9 @@ export async function processAiReply(deps: Deps, job: AiReplyJob) {
       await applyActions(deps, actionTurn, decision.actions)
       await markBotReplied(deps.db, row.conversation.id, now, decision.flowState)
       await announceConversation(deps.db, deps.events, job.orgId, row.conversation.id)
-      await recordTrace(deps.db, job, decision.trace)
-      return { replied: sent, decision: 'reply' }
+      await recordTrace(deps.db, job, decision.trace, undefined, sent)
+      await rememberLanguage(deps.db, row.conversation.contactId, decision.trace.language)
+      return { replied: !!sent, decision: 'reply' }
     }
   }
 }

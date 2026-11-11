@@ -33,7 +33,7 @@ import {
 import { matchCourse } from './match'
 import { explainViolations, looksLikeInjection, runGuardrails } from './guardrails'
 import { describeOpening, hoursToday, isOpen, localParts, nextOpening } from './hours'
-import { detectLanguage, scriptFor, type ReplyLanguage } from './language'
+import { allowedLanguage, detectLanguage, scriptFor, type ReplyLanguage } from './language'
 import { ANSWER_PROMPT_VERSION, buildAnswerPrompt } from './prompts/answer'
 import type { Models } from './providers'
 import { retrieve, type RetrievedChunk } from './retrieval'
@@ -211,7 +211,24 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   if (conversation.mode === 'closed') return { kind: 'silent', reason: 'closed' }
 
   const text = (message.type === 'audio' ? message.transcript : message.body)?.trim() ?? ''
-  const guessLang: ReplyLanguage = text ? detectLanguage(text) : 'hinglish'
+  // What they wrote in, then what the institute lets the bot reply in.
+  const writtenLang: ReplyLanguage = text ? detectLanguage(text) : 'hinglish'
+  const guessLang = allowedLanguage(writtenLang, bot?.languages)
+  // The privacy notice goes on the first thing this person is ever sent (spec §19).
+  const privacyUrl = bot?.privacyNoticeUrl?.trim()
+  const firstMessage =
+    !!privacyUrl &&
+    (await db.$count(
+      messages,
+      and(eq(messages.conversationId, conversation.id), eq(messages.direction, 'out')),
+    )) === 0
+  const withPrivacy = <C extends ReplyContent>(content: C, lang: ReplyLanguage): C =>
+    firstMessage
+      ? {
+          ...content,
+          body: `${content.body}\n\n${COPY.privacy[lang]} ${privacyUrl}`.slice(0, 1024),
+        }
+      : content
   const trace = emptyTrace()
   const finish = <T extends Decision>(d: T): T => {
     if ('trace' in d) d.trace.latencyMs = Date.now() - started
@@ -232,7 +249,13 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
     const flowState: FlowStore = { lang }
     if (next.demo) flowState.demo = next.demo
     if (next.clarifyMisses) flowState.clarifyMisses = next.clarifyMisses
-    return finish({ kind: 'reply' as const, content, trace, actions, flowState })
+    return finish({
+      kind: 'reply' as const,
+      content: withPrivacy(content, lang),
+      trace,
+      actions,
+      flowState,
+    })
   }
 
   const handoff = (
@@ -253,7 +276,7 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
     trace.language ??= lang
     return finish({
       kind: 'handoff' as const,
-      content: { kind: 'text' as const, body },
+      content: withPrivacy({ kind: 'text' as const, body }, lang),
       reason,
       summary,
       unanswered: extra.unanswered,
@@ -317,7 +340,9 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   const tap = message.interactive as { id?: string; title?: string } | null
   const tapId = tap?.id
   // A tapped title ("Free demo") says little about language; the last reply's does.
-  const tapLang: ReplyLanguage = tapId ? (store.lang ?? guessLang) : guessLang
+  const tapLang: ReplyLanguage = tapId
+    ? allowedLanguage(store.lang ?? guessLang, bot?.languages)
+    : guessLang
   let flowCtx: FlowContext | null = null
   const flow = async (lang: ReplyLanguage) => {
     flowCtx ??= await loadFlowContext(db, org, now, lang, contact.name || contact.profileName)
@@ -394,7 +419,8 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
   const routed = await route(deps.models.fast, history, text)
   // The router is told the characters decide the script; for Hinglish vs English,
   // trust the model only when it answered.
-  const lang: ReplyLanguage = routed.fromModel ? routed.language : guessLang
+  const personLang: ReplyLanguage = routed.fromModel ? routed.language : writtenLang
+  const lang = allowedLanguage(personLang, bot?.languages)
   trace.intent = routed.intent
   trace.language = lang
   trace.confidence = routed.confidence
@@ -477,6 +503,8 @@ export async function decideReply(deps: PipelineDeps, turn: Turn): Promise<Decis
     hoursToday: hoursLine,
     nowIst: nowLine,
     replyLanguage: lang,
+    languageFixed: lang !== personLang,
+    tone: bot?.tone,
   })
   const tools = createTools(toolCtx)
   const convo: ModelMessage[] = [...history, { role: 'user', content: text }]

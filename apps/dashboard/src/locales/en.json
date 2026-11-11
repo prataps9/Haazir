@@ -67,7 +67,9 @@
     "teach_other": "{{count}} questions the bot couldn't answer",
     "setupTitle": "Finish setting up",
     "setupBody": "A few steps and the bot starts answering on WhatsApp.",
-    "setupAction": "Continue setup"
+    "setupAction": "Continue setup",
+    "followups_one": "{{count}} lead to call back today",
+    "followups_other": "{{count}} leads to call back today"
   },
   "placeholder": {
     "title": "This part is still being built",
@@ -232,7 +234,12 @@
     "templateSent": "Template sent",
     "blankN": "Blank {{n}}",
     "pickAnother": "Pick another",
-    "allLanguages": "Show every language"
+    "allLanguages": "Show every language",
+    "done": "Done",
+    "modeDone": "This chat is done",
+    "markDone": "Mark done",
+    "markedDone": "Marked done. Their next message opens it again.",
+    "reopen": "Open again"
   },
   "contact": {
     "name": "Name",
@@ -397,7 +404,11 @@
     },
     "menuTooLong": "At most {{max}} characters",
     "texts": "What the bot says",
-    "textsHint": "Leave a language empty and the bot uses its standard words."
+    "textsHint": "Leave a language empty and the bot uses its standard words.",
+    "replyLanguages": "Languages the bot replies in",
+    "replyLanguagesHint": "With one switched off, the bot answers in the nearest language you allow.",
+    "privacyUrl": "Privacy notice link",
+    "privacyUrlHint": "Added once, to the first message a new person gets. Leave empty to send none."
   },
   "admin": {
     "title": "Admin",

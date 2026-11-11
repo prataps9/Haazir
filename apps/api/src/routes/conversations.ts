@@ -349,6 +349,31 @@ export function conversationsRouter(deps: Pick<AppDeps, 'db' | 'queues' | 'event
     res.json(await loadConversation(org.id, id))
   })
 
+  /**
+   * "Kaam ho gaya": the chat is done and leaves the working list. The person's
+   * next message opens it again, with the bot answering (see the inbound worker).
+   */
+  router.post('/conversations/:id/close', async (req, res) => {
+    const org = orgOf(req)
+    const { id } = uuidParam.parse(req.params)
+    await loadConversation(org.id, id)
+    await db
+      .update(conversations)
+      .set({
+        mode: 'closed',
+        humanUntil: null,
+        handoffReason: null,
+        handoffSummary: null,
+        handoffAt: null,
+        unreadCount: 0,
+        flowState: null,
+      })
+      .where(and(eq(conversations.id, id), eq(conversations.orgId, org.id)))
+    await audit(db, req, { action: 'conversation.close', entity: 'conversation', entityId: id })
+    await announce(org.id, id)
+    res.json(await loadConversation(org.id, id))
+  })
+
   router.post('/conversations/:id/read', async (req, res) => {
     const org = orgOf(req)
     const { id } = uuidParam.parse(req.params)

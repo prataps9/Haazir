@@ -51,6 +51,7 @@ export function ConversationList({ orgId, activeId }: { orgId: string; activeId?
     { value: 'unread', label: t('chat.unread') },
     { value: 'demo_booked', label: t('stages.demo_booked') },
     { value: 'admitted', label: t('stages.admitted') },
+    { value: 'closed', label: t('chat.done') },
   ]
 
   return (
@@ -164,8 +165,15 @@ function Row({ conversation: c, active }: { conversation: ConversationSummary; a
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p className="truncate text-small text-ink-muted">{c.lastMessagePreview}</p>
           <div className="flex shrink-0 items-center gap-1.5">
-            <StatusPill tone={c.mode === 'human' ? 'human' : 'bot'} className="h-6 text-small">
-              {c.mode === 'human' ? t('sample.you') : t('chat.botTag')}
+            <StatusPill
+              tone={c.mode === 'human' ? 'human' : c.mode === 'closed' ? 'neutral' : 'bot'}
+              className="h-6 text-small"
+            >
+              {c.mode === 'human'
+                ? t('sample.you')
+                : c.mode === 'closed'
+                  ? t('chat.done')
+                  : t('chat.botTag')}
             </StatusPill>
             {c.unreadCount > 0 && (
               <span

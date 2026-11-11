@@ -2,7 +2,7 @@
  * The answer prompt (spec §11.2), versioned: every ai_trace records the
  * version that produced it, so a change in quality can be traced to a change here.
  */
-export const ANSWER_PROMPT_VERSION = 'answer-v2'
+export const ANSWER_PROMPT_VERSION = 'answer-v3'
 
 export interface AnswerPromptInput {
   personaName: string
@@ -15,6 +15,10 @@ export interface AnswerPromptInput {
   nowIst: string
   /** The person's language, from the router, so the model doesn't have to guess. */
   replyLanguage: 'hi' | 'en' | 'hinglish'
+  /** True when the institute doesn't reply in the person's own language (bot settings). */
+  languageFixed?: boolean
+  /** How the owner wants the bot to sound (bot settings). */
+  tone?: 'warm' | 'formal'
 }
 
 const LANGUAGE_NOTE = {
@@ -23,7 +27,26 @@ const LANGUAGE_NOTE = {
   en: 'The person wrote in English. Reply in English.',
 } as const
 
+const FIXED_LANGUAGE_NOTE = {
+  hi: 'This institute replies only in Hindi (Devanagari script). Reply in Hindi in Devanagari, whatever the person wrote in.',
+  hinglish:
+    'This institute replies only in Hinglish (Hindi in Roman letters). Reply in Hinglish, whatever the person wrote in.',
+  en: 'This institute replies only in English. Reply in English, whatever the person wrote in.',
+} as const
+
+const TONE_NOTE = {
+  warm: 'Simple words. Friendly and respectful ("aap", "ji"). No slang.',
+  formal:
+    'Simple words. Polite and formal ("aap", "ji", "kripya"). No slang, no emoji, no exclamation marks.',
+} as const
+
 export function buildAnswerPrompt(p: AnswerPromptInput): string {
+  const language = p.languageFixed
+    ? `- ${FIXED_LANGUAGE_NOTE[p.replyLanguage]}`
+    : `- Reply in the same language AND script the person used. ${LANGUAGE_NOTE[p.replyLanguage]}
+  Hindi in Devanagari → reply in Devanagari. Hindi in Roman letters (Hinglish) → reply in Hinglish.
+  English → English. If mixed, follow their last message.`
+
   const context = p.retrievedChunks.length
     ? p.retrievedChunks.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')
     : '(nothing relevant found)'
@@ -32,10 +55,8 @@ export function buildAnswerPrompt(p: AnswerPromptInput): string {
 You help students and parents with courses, fees, batch timings, demo classes and admissions.
 
 LANGUAGE
-- Reply in the same language AND script the person used. ${LANGUAGE_NOTE[p.replyLanguage]}
-  Hindi in Devanagari → reply in Devanagari. Hindi in Roman letters (Hinglish) → reply in Hinglish.
-  English → English. If mixed, follow their last message.
-- Simple words. Friendly and respectful ("aap", "ji"). No slang.
+${language}
+- ${TONE_NOTE[p.tone ?? 'warm']}
 
 FACTS
 - Business facts (fees, discounts, dates, seats, timings, address, faculty, certificates)

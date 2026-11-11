@@ -34,6 +34,8 @@ export interface BotConfig {
   enabled: boolean
   personaName: string
   tone: 'warm' | 'formal'
+  languages: ('hi' | 'en' | 'hinglish')[]
+  privacyNoticeUrl: string | null
   greeting: Localised
   mainMenu: { id: 'menu_courses' | 'menu_demo' | 'menu_talk'; title: Localised }[]
   handoffKeywords: string[]

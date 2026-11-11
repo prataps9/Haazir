@@ -1,4 +1,4 @@
-import { and, eq, inArray, lte } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, lt, lte, notInArray } from 'drizzle-orm'
 import { formatTime } from '@haazir/ai-core'
 import {
   ensurePaymentLink,
@@ -8,7 +8,13 @@ import {
   type FeeReminderKind,
 } from '@haazir/coaching'
 import { courses, demoBookings, feeInstallments, leads, organizations, students } from '@haazir/db'
-import { announceMessage, quietUntil, sendAutomation, type ReminderJob } from '@haazir/messaging'
+import {
+  announceMessage,
+  notifyOrg,
+  quietUntil,
+  sendAutomation,
+  type ReminderJob,
+} from '@haazir/messaging'
 import { addDays, formatPaise, type TemplatePurpose } from '@haazir/shared'
 import type { Deps } from '../deps'
 
@@ -186,9 +192,38 @@ export async function feeSweep(deps: Deps, onlyOrgId?: string) {
       }
     }
     deps.events.emit(org.id, 'fee:updated', {})
+    await remindFollowups(deps, org.id, today).catch((err: Error) =>
+      deps.log.warn({ err: err.message, orgId: org.id }, 'follow-up push failed'),
+    )
   }
   deps.log.info({ today, ...tally }, 'fee sweep done')
   return tally
+}
+
+/**
+ * The morning nudge for call-backs staff promised (`leads.next_followup_at`):
+ * one push to the team's phones, not a WhatsApp message, so it costs nothing.
+ */
+export async function remindFollowups(deps: Deps, orgId: string, today: string) {
+  if (!deps.push) return { due: 0, pushed: false }
+  const endOfToday = new Date(Date.parse(`${addDays(today, 1)}T00:00:00+05:30`))
+  const due = await deps.db.$count(
+    leads,
+    and(
+      eq(leads.orgId, orgId),
+      isNotNull(leads.nextFollowupAt),
+      lt(leads.nextFollowupAt, endOfToday),
+      notInArray(leads.stage, ['admitted', 'lost']),
+    ),
+  )
+  if (!due) return { due, pushed: false }
+  await notifyOrg({ db: deps.db, push: deps.push }, orgId, 'newLead', {
+    title: `Aaj ${due} follow-up baaki`,
+    body: 'Jin logon ko wapas call karna tha, unki list dekhein.',
+    url: '/leads',
+    tag: `followups-${today}`,
+  })
+  return { due, pushed: true }
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

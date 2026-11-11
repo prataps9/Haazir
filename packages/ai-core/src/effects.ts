@@ -3,6 +3,7 @@ import {
   aiTraces,
   contacts,
   conversations,
+  messages,
   unansweredQuestions,
   type AnyDatabase,
 } from '@haazir/db'
@@ -25,25 +26,49 @@ export async function recordTrace(
   turn: Turn,
   trace: TraceData,
   handoff?: { reason: HandoffReason },
+  /** The reply this trace produced, so the inbox can show why the bot said it. */
+  replyMessageId?: string | null,
 ) {
-  await db.insert(aiTraces).values({
-    orgId: turn.orgId,
-    conversationId: turn.conversationId,
-    messageId: turn.messageId,
-    intent: trace.intent,
-    language: trace.language,
-    confidence: trace.confidence,
-    retrievedChunkIds: trace.retrievedChunkIds,
-    toolCalls: trace.toolCalls,
-    model: trace.model,
-    promptVersion: trace.promptVersion,
-    inputTokens: trace.inputTokens,
-    outputTokens: trace.outputTokens,
-    latencyMs: trace.latencyMs,
-    handedOff: !!handoff,
-    handoffReason: handoff?.reason ?? null,
-    guardrailFlags: trace.guardrailFlags,
-  })
+  const [row] = await db
+    .insert(aiTraces)
+    .values({
+      orgId: turn.orgId,
+      conversationId: turn.conversationId,
+      messageId: turn.messageId,
+      intent: trace.intent,
+      language: trace.language,
+      confidence: trace.confidence,
+      retrievedChunkIds: trace.retrievedChunkIds,
+      toolCalls: trace.toolCalls,
+      model: trace.model,
+      promptVersion: trace.promptVersion,
+      inputTokens: trace.inputTokens,
+      outputTokens: trace.outputTokens,
+      latencyMs: trace.latencyMs,
+      handedOff: !!handoff,
+      handoffReason: handoff?.reason ?? null,
+      guardrailFlags: trace.guardrailFlags,
+    })
+    .returning({ id: aiTraces.id })
+  if (row && replyMessageId)
+    await db.update(messages).set({ aiTraceId: row.id }).where(eq(messages.id, replyMessageId))
+  return row?.id ?? null
+}
+
+/**
+ * Remembers the language the person was answered in, so reminders and
+ * receipts reach them in it too (`sendAutomation` picks the template by it).
+ */
+export async function rememberLanguage(
+  db: AnyDatabase,
+  contactId: string,
+  language: string | null,
+) {
+  if (language !== 'hi' && language !== 'en' && language !== 'hinglish') return
+  await db
+    .update(contacts)
+    .set({ language })
+    .where(and(eq(contacts.id, contactId), sql`${contacts.language} is distinct from ${language}`))
 }
 
 /**

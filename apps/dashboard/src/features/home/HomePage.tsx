@@ -1,4 +1,9 @@
-import { ChalkboardTeacherIcon, ChatsCircleIcon, RocketLaunchIcon } from '@phosphor-icons/react'
+import {
+  ChalkboardTeacherIcon,
+  ChatsCircleIcon,
+  PhoneCallIcon,
+  RocketLaunchIcon,
+} from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -105,6 +110,19 @@ export default function HomePage() {
                 </Link>
               }
             />
+          )}
+          {s && s.followupsDue > 0 && (
+            <Link
+              to="/leads"
+              className="flex min-h-12 items-center gap-3 rounded-card border border-rule bg-surface px-4 text-body text-ink transition-colors duration-150 hover:border-ink-muted/60"
+            >
+              <PhoneCallIcon
+                className="size-6 shrink-0 text-madder-700"
+                weight="duotone"
+                aria-hidden
+              />
+              {t('home.followups', { count: s.followupsDue })}
+            </Link>
           )}
           {s && s.unansweredCount > 0 && (
             <Link

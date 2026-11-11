@@ -20,6 +20,16 @@ const botPatch = z
   .object({
     personaName: z.string().trim().min(1).max(40),
     tone: z.enum(['warm', 'formal']),
+    // The languages the bot may reply in; at least one.
+    languages: z
+      .array(z.enum(['hi', 'en', 'hinglish']))
+      .min(1)
+      .max(3),
+    // Added to the first message a new person is sent (spec §19). Null removes it.
+    privacyNoticeUrl: z
+      .url({ protocol: /^https$/ })
+      .max(300)
+      .nullable(),
     greeting: localised,
     // WhatsApp reply buttons: at most 3, titles at most 20 characters.
     mainMenu: z

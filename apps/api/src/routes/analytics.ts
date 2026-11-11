@@ -46,7 +46,7 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
       where: Parameters<typeof db.$count>[1],
     ) => db.$count(table, where)
 
-    const [ledger, botReplies, latency, waitingChats, unanswered, demoList, dueSoon] =
+    const [ledger, botReplies, latency, waitingChats, unanswered, demoList, dueSoon, followups] =
       await Promise.all([
         ledgerNumbers(db, org.id, startDate, range === 'week' ? 7 : 1),
         count(
@@ -132,6 +132,16 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
           )
           .orderBy(asc(feeInstallments.dueDate))
           .limit(5),
+        // Leads staff promised to call back by the end of today, late ones included.
+        count(
+          leads,
+          and(
+            eq(leads.orgId, org.id),
+            isNotNull(leads.nextFollowupAt),
+            lt(leads.nextFollowupAt, istRange(today).to),
+            sql`${leads.stage} not in ('admitted', 'lost')`,
+          ),
+        ),
       ])
 
     res.json({
@@ -146,6 +156,7 @@ export function analyticsRouter(deps: Pick<AppDeps, 'db' | 'now'>) {
       unansweredCount: unanswered,
       demos: demoList,
       feesDue: dueSoon,
+      followupsDue: followups,
     })
   })
 

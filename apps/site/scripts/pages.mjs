@@ -22,7 +22,44 @@ const DIST = resolve(ROOT, 'dist')
 
 const SITE = process.env.SITE_URL ?? 'https://haazir-pink.vercel.app'
 
-const html = readFileSync(resolve(DIST, 'index.html'), 'utf8')
+const source = readFileSync(resolve(DIST, 'index.html'), 'utf8')
+
+/**
+ * Structured data for search engines: what haazir is and where it works from.
+ * No price, rating or review is claimed here; the page itself carries the prices.
+ */
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'ProfessionalService',
+      '@id': `${SITE}/#studio`,
+      name: 'haazir',
+      url: `${SITE}/`,
+      image: `${SITE}/og.png`,
+      description:
+        'A Jaipur studio that builds WhatsApp AI agents for Indian businesses: replies to enquiries, bookings, reminders, follow-ups and campaigns on one number.',
+      address: { '@type': 'PostalAddress', addressLocality: 'Jaipur', addressRegion: 'Rajasthan', addressCountry: 'IN' },
+      areaServed: 'IN',
+      knowsLanguage: ['hi', 'en'],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'haazir',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web, WhatsApp',
+      provider: { '@id': `${SITE}/#studio` },
+    },
+  ],
+}
+// "<" escaped so nothing inside the JSON can close the script tag.
+const html = source.replace(
+  '</head>',
+  `  <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>\n  </head>`,
+)
+if (html === source) throw new Error('pages.mjs: no </head> in dist/index.html')
+writeFileSync(resolve(DIST, 'index.html'), html)
+
 
 /** Replaces the content of a single meta/link tag, matched on its identifying attribute. */
 function setTag(source, attr, name, content) {
@@ -57,3 +94,15 @@ for (const segment of SEGMENTS) {
   writeFileSync(resolve(DIST, `${segment.slug}.html`), page)
   console.log(`wrote dist/${segment.slug}.html`)
 }
+
+// robots.txt and the sitemap carry the same domain as the pages, so one
+// SITE_URL change moves all of them.
+const urls = [`${SITE}/`, ...SEGMENTS.map((s) => `${SITE}/${s.slug}`)]
+writeFileSync(
+  resolve(DIST, 'sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+    .map((u) => `  <url><loc>${u}</loc></url>`)
+    .join('\n')}\n</urlset>\n`,
+)
+writeFileSync(resolve(DIST, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`)
+console.log('wrote dist/sitemap.xml and dist/robots.txt')

@@ -139,6 +139,7 @@ describe('tenant isolation: org A can never see or change org B', () => {
       owner.post(`/api/v1/conversations/${b.conversation.id}/messages`).send({ text: 'hi' }),
       owner.post(`/api/v1/conversations/${b.conversation.id}/takeover`),
       owner.post(`/api/v1/conversations/${b.conversation.id}/handback`),
+      owner.post(`/api/v1/conversations/${b.conversation.id}/close`),
       owner.patch(`/api/v1/conversations/${b.conversation.id}`).send({ assignedUserId: null }),
       owner.get(`/api/v1/contacts/${b.contact.id}`),
       owner.patch(`/api/v1/contacts/${b.contact.id}`).send({ notes: 'x' }),
@@ -243,6 +244,18 @@ describe('the inbox', () => {
       .update(conversations)
       .set({ serviceWindowExpiresAt: new Date(Date.now() + 3_600_000) })
       .where(eq(conversations.id, t.orgA.conversation.id))
+  })
+
+  it('closing a chat clears its handoff and unread count; handing back reopens it', async () => {
+    const staff = await t.login(t.users.staff)
+    await t.db
+      .update(conversations)
+      .set({ mode: 'human', handoffReason: 'upset', unreadCount: 3 })
+      .where(eq(conversations.id, t.orgA.conversation.id))
+    const closed = await staff.post(`/api/v1/conversations/${t.orgA.conversation.id}/close`)
+    expect(closed.body).toMatchObject({ mode: 'closed', handoffReason: null, unreadCount: 0 })
+    const back = await staff.post(`/api/v1/conversations/${t.orgA.conversation.id}/handback`)
+    expect(back.body.mode).toBe('bot')
   })
 
   it('takeover and handback flip the mode, and both are audit-logged', async () => {

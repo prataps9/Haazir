@@ -1,5 +1,6 @@
 import {
   ArrowLeftIcon,
+  CheckIcon,
   IdentificationCardIcon,
   PaperPlaneRightIcon,
   SpinnerIcon,
@@ -30,7 +31,14 @@ import { usePreferences } from '@/lib/preferences'
 import { dayLabel, sameDay, windowLeft } from '@/lib/time'
 import { toast } from '@/lib/toast'
 import { displayName, formatPhone, type ConversationSummary, type Message } from '@/lib/types'
-import { useConversation, useMarkRead, useMessages, useModeChange, useSendMessage } from './queries'
+import {
+  useCloseConversation,
+  useConversation,
+  useMarkRead,
+  useMessages,
+  useModeChange,
+  useSendMessage,
+} from './queries'
 import { TemplatePicker } from './TemplatePicker'
 
 export function ConversationView({ id, onShowContact }: { id: string; onShowContact(): void }) {
@@ -108,13 +116,20 @@ function Header({
 function ModeStrip({ conversation: c }: { conversation: ConversationSummary }) {
   const { t } = useTranslation()
   const change = useModeChange(c.id)
+  const close = useCloseConversation(c.id)
   const human = c.mode === 'human'
+  const closed = c.mode === 'closed'
+  const markDone = () =>
+    close.mutate(undefined, {
+      onSuccess: () => toast({ title: t('chat.markedDone'), tone: 'success' }),
+      onError: () => toast({ title: t('common.loadError'), tone: 'danger' }),
+    })
   const flip = () =>
-    change.mutate(human ? 'bot' : 'human', {
+    change.mutate(human || closed ? 'bot' : 'human', {
       onSuccess: () =>
         toast({
-          title: human ? t('chat.handedBack') : t('chat.takenOver'),
-          tone: human ? 'success' : 'human',
+          title: human || closed ? t('chat.handedBack') : t('chat.takenOver'),
+          tone: human || closed ? 'success' : 'human',
         }),
       onError: () => toast({ title: t('common.loadError'), tone: 'danger' }),
     })
@@ -122,21 +137,39 @@ function ModeStrip({ conversation: c }: { conversation: ConversationSummary }) {
     <div
       className={cn(
         'flex shrink-0 items-center justify-between gap-3 border-b border-rule px-4 py-2 transition-colors duration-150',
-        human ? 'bg-madder-50' : 'bg-pottery-50',
+        human ? 'bg-madder-50' : closed ? 'bg-surface' : 'bg-pottery-50',
       )}
     >
-      <StatusPill tone={human ? 'human' : 'bot'} className="bg-transparent px-0">
-        {human ? t('chat.modeHuman') : t('chat.modeBot')}
-      </StatusPill>
-      <Button
-        size="md"
-        variant={human ? 'secondary' : 'primary'}
-        onClick={flip}
-        loading={change.isPending}
+      <StatusPill
+        tone={human ? 'human' : closed ? 'neutral' : 'bot'}
+        className="bg-transparent px-0"
       >
-        <UserSwitchIcon aria-hidden />
-        {human ? t('chat.handback') : t('chat.takeover')}
-      </Button>
+        {human ? t('chat.modeHuman') : closed ? t('chat.modeDone') : t('chat.modeBot')}
+      </StatusPill>
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        {!closed && (
+          <Button size="md" variant="secondary" onClick={markDone} loading={close.isPending}>
+            <CheckIcon aria-hidden />
+            {t('chat.markDone')}
+          </Button>
+        )}
+        {closed ? (
+          <Button size="md" variant="secondary" onClick={flip} loading={change.isPending}>
+            <UserSwitchIcon aria-hidden />
+            {t('chat.reopen')}
+          </Button>
+        ) : (
+          <Button
+            size="md"
+            variant={human ? 'secondary' : 'primary'}
+            onClick={flip}
+            loading={change.isPending}
+          >
+            <UserSwitchIcon aria-hidden />
+            {human ? t('chat.handback') : t('chat.takeover')}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

@@ -16,3 +16,20 @@ describe('detectScript / detectLanguage', () => {
     expect(detectLanguage(text)).toBe(language)
   })
 })
+
+describe('allowedLanguage', () => {
+  it('changes nothing when every language is allowed, or none is listed', async () => {
+    const { allowedLanguage } = await import('../language')
+    expect(allowedLanguage('hi', ['hi', 'en', 'hinglish'])).toBe('hi')
+    expect(allowedLanguage('en', [])).toBe('en')
+    expect(allowedLanguage('en', null)).toBe('en')
+  })
+
+  it('falls to the nearest allowed one: Hindi and Hinglish before English', async () => {
+    const { allowedLanguage } = await import('../language')
+    expect(allowedLanguage('hi', ['hinglish', 'en'])).toBe('hinglish')
+    expect(allowedLanguage('hinglish', ['hi', 'en'])).toBe('hi')
+    expect(allowedLanguage('en', ['hi', 'hinglish'])).toBe('hinglish')
+    expect(allowedLanguage('en', ['hi'])).toBe('hi')
+  })
+})

@@ -203,6 +203,8 @@ async function storeInbound(deps: Deps, account: WhatsappAccount, m: InboundMess
       }
     }
 
+    // A new message opens a chat staff had marked done, and the bot answers it.
+    const reopened = conversation.mode === 'closed'
     const window = extendWindow(conversation.serviceWindowExpiresAt, m.timestamp)
     const latest = !conversation.lastMessageAt || m.timestamp >= conversation.lastMessageAt
     await tx
@@ -210,6 +212,7 @@ async function storeInbound(deps: Deps, account: WhatsappAccount, m: InboundMess
       .set({
         serviceWindowExpiresAt: window,
         unreadCount: sql`${conversations.unreadCount} + 1`,
+        ...(reopened ? { mode: 'bot' as const } : {}),
         // A delivery that arrives late mustn't overwrite a newer preview.
         ...(latest ? { lastMessageAt: m.timestamp, lastMessagePreview: previewOf(m) } : {}),
       })
@@ -218,7 +221,7 @@ async function storeInbound(deps: Deps, account: WhatsappAccount, m: InboundMess
     return {
       messageId: message.id,
       conversationId: conversation.id,
-      mode: conversation.mode,
+      mode: reopened ? ('bot' as const) : conversation.mode,
       isNew: true,
     }
   })

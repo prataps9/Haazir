@@ -151,6 +151,8 @@ export interface Summary {
   feesCollectedPaise: number
   waitingChats: number
   unansweredCount: number
+  /** Leads whose promised call-back is today or already late. */
+  followupsDue: number
   demos: Pick<
     DemoRow,
     'id' | 'startsAt' | 'status' | 'studentName' | 'courseName' | 'batchName' | 'conversationId'

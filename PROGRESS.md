@@ -40,7 +40,7 @@ Three lines per phase (spec, "How to use this file").
 
 ## Outside the phases: agent + marketing system (asked for by Pratap, Nov 2026)
 
-Five steps, one at a time, plan agreed with Pratap. Phase 6 is still next after them.
+Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after them.
 
 1. **Landing page shows both halves (done).** `apps/site` gained `Marketing.jsx` (leads, reminders
    and follow-ups, campaigns, payment links, reports, opt-out and quiet hours) and `Loop.jsx`, a nav
@@ -50,12 +50,27 @@ Five steps, one at a time, plan agreed with Pratap. Phase 6 is still next after 
    monitoring). Positioning and prices unchanged. Still placeholders: the WhatsApp number and
    domain in `src/lib/site.js`. The page describes bookings and reminders for jewellers, clinics and
    hotels, but only the coaching vertical is built.
-2. After-hours message on normal replies; opt-in by START keyword or button (not started).
-3. Contacts page, CSV import, bulk tags, saved segments (not started; needs Pratap's yes on how
-   imported consent is stored).
-4. Click-to-WhatsApp ad source and per-campaign admissions (not started; needs Pratap's yes on
-   storing the ad reference per lead).
-5. Follow-up sequences (not started; needs Pratap's yes on the added Meta message cost).
+2. **Fixes to what already existed (done).**
+   - The bot now uses three settings it used to ignore: tone (prompt `answer-v3`), the languages it
+     may reply in, and the privacy notice link (added once, to the first message a person is sent).
+     Languages and the link are new fields in Bot settings.
+   - Each bot reply is linked to its `ai_traces` row (`messages.ai_trace_id`), and the language a
+     person was answered in is saved on the contact, so reminders pick the matching template.
+   - A chat can be marked done (`POST /conversations/:id/close`, a "Done" filter and pill); the
+     person's next message reopens it with the bot answering.
+   - Leads with a call-back due today or late show as a count on Home and as one push at 10 AM
+     (with the fee sweep). Not added to the 8 PM WhatsApp summary: that is an approved template
+     with four fixed values.
+   - Site: `robots.txt`, `sitemap.xml` and JSON-LD are written at build time.
+   - Known gaps: evals did not run (no LLM key), so the tone wording is untested on a real model;
+     no screenshots were taken of the new Bot settings fields or the Done state; the trace link
+     has no screen yet.
+3. After-hours message on normal replies; opt-in by START keyword or button (not started).
+4. Contacts page, CSV import, bulk tags, saved segments (not started). Agreed: imported contacts
+   are left out of campaigns unless the file carries consent and the uploader declares it.
+5. Click-to-WhatsApp ad source and per-campaign admissions (not started). Agreed: the ad
+   reference is stored on the lead.
+6. Follow-up sequences (not started). Agreed: at most 3 steps, off by default, cost shown.
 
 ## Next: Phase 6, business layer, hardening and launch
 

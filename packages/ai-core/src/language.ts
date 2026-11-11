@@ -37,6 +37,25 @@ export function detectLanguage(text: string): ReplyLanguage {
   return hits >= 2 || (words.length <= 3 && hits >= 1) ? 'hinglish' : 'en'
 }
 
+/** Closest first: Hindi and Hinglish stand in for each other before English does. */
+const NEAREST: Record<ReplyLanguage, ReplyLanguage[]> = {
+  hi: ['hi', 'hinglish', 'en'],
+  hinglish: ['hinglish', 'hi', 'en'],
+  en: ['en', 'hinglish', 'hi'],
+}
+
+/**
+ * The language to reply in when the institute has limited which ones its bot
+ * uses (bot settings). No limit, or a list we don't recognise, changes nothing.
+ */
+export function allowedLanguage(
+  language: ReplyLanguage,
+  allowed: readonly string[] | null | undefined,
+): ReplyLanguage {
+  if (!allowed?.length) return language
+  return NEAREST[language].find((l) => allowed.includes(l)) ?? language
+}
+
 export function scriptFor(language: ReplyLanguage): Script {
   return language === 'hi' ? 'devanagari' : 'latin'
 }
