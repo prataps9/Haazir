@@ -70,7 +70,7 @@ export function PrimaryCTA({
   const look =
     tone === 'light'
       ? 'bg-paper text-ink hover:bg-white'
-      : 'bg-clay-deep text-white shadow-[0_8px_18px_-10px_rgb(168_72_43_/_0.65)] hover:bg-[#8f3c23]'
+      : 'bg-clay-deep text-white shadow-[0_8px_18px_-10px_rgb(168_72_43_/_0.65)] hover:bg-clay-press'
 
   return (
     <a
@@ -93,24 +93,5 @@ export function GhostCTA({ children, href = '#pricing', className = '' }) {
     >
       {children}
     </a>
-  )
-}
-
-/** A small pill above a section heading. Sentence case, no rule, no shouting. */
-export function SectionLabel({ children, tone = 'dark' }) {
-  return (
-    <p
-      className={`mb-5 inline-flex items-center gap-2 rounded-full border py-1 pr-3.5 pl-2.5 text-[0.82rem] font-medium ${
-        tone === 'light'
-          ? 'border-paper/20 text-paper/80'
-          : 'border-line bg-white text-ink/70'
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${tone === 'light' ? 'bg-clay-soft' : 'bg-clay'}`}
-        aria-hidden="true"
-      />
-      {children}
-    </p>
   )
 }

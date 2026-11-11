@@ -90,7 +90,7 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, dev
 
 for (const segment of [DEFAULT_SEGMENT, ...SEGMENTS]) {
   const file = segment.slug ? `og-${segment.slug}.png` : 'og.png'
-  await page.setContent(card(segment.eyebrow), { waitUntil: 'load' })
+  await page.setContent(card(segment.slug ? `For ${segment.name}` : null), { waitUntil: 'load' })
   await page.screenshot({ path: resolve(OUT, file) })
   console.log('wrote public/' + file)
 }

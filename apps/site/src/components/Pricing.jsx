@@ -1,6 +1,5 @@
 import { Check } from 'lucide-react'
-import { PrimaryCTA, SectionLabel } from './Brand'
-import Reveal from './Reveal'
+import { PrimaryCTA } from './Brand'
 
 const PLANS = [
   {
@@ -9,15 +8,15 @@ const PLANS = [
     cadence: 'once',
     badge: 'Starts here',
     body: 'Reading your history, writing the agent, getting it through Meta verification and onto your number.',
-    points: ['Discovery afternoon', 'Agent built to your transcript', 'Verification & template approvals'],
+    points: ['Discovery afternoon', 'Agent built to your transcript', 'Verification and template approvals'],
     featured: true,
   },
   {
     name: 'Run',
     price: '₹5,000',
     cadence: 'per month',
-    body: 'Hosting, monitoring, and the edits you ask for as your catalogue, staff and prices change.',
-    points: ['Uptime & quality monitoring', 'Unlimited copy edits', 'One-page monthly report'],
+    body: 'Hosting, upkeep, and the edits you ask for as your catalogue, staff and prices change.',
+    points: ['Hosting and upkeep', 'Unlimited copy edits', 'One-page monthly report'],
   },
   {
     name: 'Messages',
@@ -49,16 +48,15 @@ export default function Pricing() {
   return (
     <section id="pricing" className="border-t border-line bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
-        <Reveal>
-          <SectionLabel>Pricing</SectionLabel>
+        <div>
           <h2 className="max-w-[18ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             Two numbers and a pass-through.
           </h2>
-        </Reveal>
+        </div>
 
         <div className="mt-12 grid gap-4 sm:gap-5 md:grid-cols-3">
           {PLANS.map((plan, i) => (
-            <Reveal key={plan.name} delay={i * 70}>
+            <div key={plan.name}>
               <article
                 className={`relative flex h-full flex-col rounded-[1.5rem] border p-7 sm:p-8 ${
                   plan.featured
@@ -109,25 +107,25 @@ export default function Pricing() {
                   ))}
                 </ul>
               </article>
-            </Reveal>
+            </div>
           ))}
         </div>
 
-        <Reveal delay={210} className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
           <PrimaryCTA context="pricing">Ask what yours would cost</PrimaryCTA>
           <p className="text-[0.95rem] text-ink/65">
             No retainer lock-in. Cancel the monthly whenever you like.
           </p>
-        </Reveal>
+        </div>
 
-        <Reveal delay={90} className="mt-12 grid gap-4 border-t border-line pt-10 sm:gap-5 md:grid-cols-2">
+        <div className="mt-12 grid gap-4 border-t border-line pt-10 sm:gap-5 md:grid-cols-2">
           {OBJECTIONS.map(({ q, a }) => (
             <div key={q}>
               <h3 className="text-[1.2rem]">{q}</h3>
               <p className="mt-3 text-[0.95rem] text-ink/70">{a}</p>
             </div>
           ))}
-        </Reveal>
+        </div>
       </div>
     </section>
   )

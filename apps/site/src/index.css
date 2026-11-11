@@ -13,6 +13,8 @@
   --color-stone: #f1efe9;
   --color-mint: #dcefd5;
   --color-tick: #2f84c6;
+  --color-clay-press: #8f3c23;
+  --color-online: #4ade80;
 
   --font-sans: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif,
     system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -65,46 +67,9 @@
   }
 }
 
-@utility grid-bg {
-  background-image: linear-gradient(
-      to right,
-      rgb(14 16 19 / 0.055) 1px,
-      transparent 1px
-    ),
-    linear-gradient(to bottom, rgb(14 16 19 / 0.055) 1px, transparent 1px);
-  background-size: 68px 68px;
-}
-
-/* Radially masked so the grid fades out at the edges. */
-@utility grid-mask-hero {
-  -webkit-mask-image: radial-gradient(
-    75% 62% at 22% 18%,
-    #000 0%,
-    rgb(0 0 0 / 0.55) 45%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    75% 62% at 22% 18%,
-    #000 0%,
-    rgb(0 0 0 / 0.55) 45%,
-    transparent 100%
-  );
-}
-
-@utility grid-mask-panel {
-  -webkit-mask-image: radial-gradient(
-    80% 80% at 50% 12%,
-    #000 0%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(80% 80% at 50% 12%, #000 0%, transparent 100%);
-}
-
-/* The quiet dotted paper behind a chat, as WhatsApp does it. */
+/* The flat paper behind a chat. */
 @utility wa-wallpaper {
   background-color: var(--color-stone);
-  background-image: radial-gradient(rgb(18 58 47 / 0.09) 1.2px, transparent 1.2px);
-  background-size: 18px 18px;
 }
 
 /* Two-layer card shadow: a hairline plus one soft drop. */
@@ -115,53 +80,9 @@
     0 18px 40px -24px rgb(14 16 19 / 0.14);
 }
 
-@keyframes haazir-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-@keyframes haazir-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.35;
-    transform: scale(0.72);
-  }
-}
-
-@keyframes haazir-ring {
-  0% {
-    opacity: 0.55;
-    transform: scale(0.8);
-  }
-  80%,
-  100% {
-    opacity: 0;
-    transform: scale(2.4);
-  }
-}
-
-.animate-marquee {
-  animation: haazir-marquee 64s linear infinite;
-  will-change: transform;
-}
-
-.animate-dot {
-  animation: haazir-pulse 2s ease-in-out infinite;
-}
-
-.animate-ring {
-  animation: haazir-ring 2s ease-out infinite;
-}
-
-/* Range sliders — terracotta thumb on a warm track. */
+/* Range sliders: terracotta thumb on a warm track. The filled part of the
+   track is a separate bar drawn in Calculator.jsx, so the input's own track
+   stays clear. */
 .haazir-range {
   -webkit-appearance: none;
   appearance: none;
@@ -174,21 +95,13 @@
 .haazir-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    var(--color-clay) var(--fill, 0%),
-    var(--color-line) var(--fill, 0%)
-  );
+  background: transparent;
 }
 
 .haazir-range::-moz-range-track {
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    var(--color-clay) var(--fill, 0%),
-    var(--color-line) var(--fill, 0%)
-  );
+  background: transparent;
 }
 
 .haazir-range::-webkit-slider-thumb {
@@ -250,27 +163,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-@keyframes haazir-fade-down {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-down {
-  animation: haazir-fade-down 0.22s ease-out both;
-}
-
-/* Pause the marquee when the visitor is looking closely at it. */
-.marquee-group:hover .animate-marquee,
-.marquee-group:focus-within .animate-marquee {
-  animation-play-state: paused;
-}
-
 /* Everything stops under prefers-reduced-motion. */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -284,11 +176,6 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
-  }
-
-  .animate-marquee {
-    animation: none !important;
-    transform: none !important;
   }
 }
 

@@ -38,6 +38,25 @@ Three lines per phase (spec, "How to use this file").
 - Campaigns to opted-in contacts only (tag, stage, course, batch; a live count of who is left out), preview for a real person, estimate with GST, scheduled or sent now, never at night, paced 25 at a time every 500 ms, retry-safe, cancellable; results from Meta's statuses with failure reasons and actual cost. Staff record consent; campaign replies become enquiries with source campaign; the owner's 8 PM summary; Reports with tiles, charts and cost by kind. Agents see none of it (spec §19).
 - 408 automated tests. `scripts/e2e-campaign.sh` runs the "done when" in CI on real Postgres and Redis: 50 opted-in contacts, 5 left out, throttled, actual cost equal to the estimate.
 
+## Outside the phases: agent + marketing system (asked for by Pratap, Nov 2026)
+
+Five steps, one at a time, plan agreed with Pratap. Phase 6 is still next after them.
+
+1. **Landing page shows both halves (done).** `apps/site` gained `Marketing.jsx` (leads, reminders
+   and follow-ups, campaigns, payment links, reports, opt-out and quiet hours) and `Loop.jsx`, a nav
+   link, a marketing paragraph per segment and three FAQ entries. Gradients, the hero glow, section
+   fade-ins, heading pills and the trailing arrow are gone. Claims the product can't back were
+   reworded ("will not get banned", "live calendar", "a real exchange", green tick, quality rating
+   monitoring). Positioning and prices unchanged. Still placeholders: the WhatsApp number and
+   domain in `src/lib/site.js`. The page describes bookings and reminders for jewellers, clinics and
+   hotels, but only the coaching vertical is built.
+2. After-hours message on normal replies; opt-in by START keyword or button (not started).
+3. Contacts page, CSV import, bulk tags, saved segments (not started; needs Pratap's yes on how
+   imported consent is stored).
+4. Click-to-WhatsApp ad source and per-campaign admissions (not started; needs Pratap's yes on
+   storing the ad reference per lead).
+5. Follow-up sequences (not started; needs Pratap's yes on the added Meta message cost).
+
 ## Next: Phase 6, business layer, hardening and launch
 
 Needs from Pratap: confirm Meta's India rates for the card (seeded ₹0.8631 marketing, ₹0.1150 utility and authentication, from 1 Jul 2026); a real WABA with `whatsapp_business_management` to see real template reviews; Razorpay test keys; an LLM key for the evals and brochure extract; ~20 Hindi voice notes; staging hosting; a Meta test number for the Phase 1 loop and Android push; a read of the eval cases.

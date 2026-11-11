@@ -77,7 +77,7 @@ export default function Thread({ opened, messages, handover, className = '' }) {
               <span className="block text-[0.74rem] leading-tight text-paper/75">{opened}</span>
             </span>
             <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-paper/12 py-1 pr-2.5 pl-2 text-[0.72rem] text-paper">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" aria-hidden="true" />
+              <span className="h-1.5 w-1.5 rounded-full bg-online" aria-hidden="true" />
               Live
             </span>
           </figcaption>
@@ -134,7 +134,7 @@ export default function Thread({ opened, messages, handover, className = '' }) {
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-3 text-[0.82rem] text-ink/65">
-        <span>A real exchange, start to hand-off. Nobody on the team was awake.</span>
+        <span>An example exchange, start to hand-off, at an hour when nobody on the team is awake.</span>
         {finished && !reduced && (
           <button
             type="button"

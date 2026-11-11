@@ -1,6 +1,5 @@
 import { Plus } from 'lucide-react'
-import { PrimaryCTA, SectionLabel } from './Brand'
-import Reveal from './Reveal'
+import { PrimaryCTA } from './Brand'
 
 /**
  * The questions that otherwise cost a round-trip each in a DM. Native
@@ -28,6 +27,18 @@ const QUESTIONS = [
     a: 'About three weeks. An afternoon with you, a working agent on a test number inside a week, then business verification and template approvals with Meta — that last part runs on Meta’s timeline, not ours, so it is the step that can stretch.',
   },
   {
+    q: 'Will campaigns annoy my customers?',
+    a: 'A campaign only goes to people who agreed to hear from you; everyone else is left out, and you see how many before you send. Anyone who replies STOP is never messaged again, and nothing promotional goes out between 9 at night and 8 in the morning.',
+  },
+  {
+    q: 'What does it cost to send a campaign or a reminder?',
+    a: "Replying to someone within 24 hours of their last message is free. Outside that, Meta charges for each message, and promotional ones cost more than reminders. You see the total with GST before a campaign goes out, and we bill it at cost.",
+  },
+  {
+    q: 'Does it only answer, or can it also follow up?',
+    a: 'Both. It answers enquiries, and it also sends booking confirmations, reminders before a visit, a follow-up the day after, payment reminders with a link, and the campaigns you schedule. Every enquiry is saved as a lead your team can see.',
+  },
+  {
     q: 'Does it work in Hindi?',
     a: 'Hindi, English and Hinglish, out of the box. It replies in whatever script the customer wrote in, and switches mid-conversation without being asked.',
   },
@@ -37,8 +48,7 @@ export default function Faq() {
   return (
     <section id="faq" className="border-t border-line bg-paper py-20 sm:py-28">
       <div className="mx-auto grid max-w-[1180px] gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
-        <Reveal className="lg:sticky lg:top-28 lg:self-start">
-          <SectionLabel>Straight answers</SectionLabel>
+        <div className="lg:sticky lg:top-28 lg:self-start">
           <h2 className="max-w-[16ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             The things everyone asks before they say yes.
           </h2>
@@ -46,7 +56,7 @@ export default function Faq() {
           <div className="mt-6">
             <PrimaryCTA context="nav">Ask us directly</PrimaryCTA>
           </div>
-        </Reveal>
+        </div>
 
         <div className="flex flex-col gap-3">
           {QUESTIONS.map(({ q, a }) => (

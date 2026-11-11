@@ -4,8 +4,8 @@
  * instead of a generic "business".
  *
  * Everything brand-level (the wordmark, the headline, the palette) stays fixed.
- * What changes is the subhead, the thread the hero plays, and what the
- * calculator opens tuned to.
+ * What changes is the subhead, the thread the hero plays, the paragraph that
+ * opens the marketing section, and what the calculator opens tuned to.
  *
  * `thread` is the scripted exchange the hero plays out. Each one
  * is written to end the same way on purpose: the agent answers, books, and then
@@ -20,7 +20,8 @@ export const DEFAULT_SEGMENT = {
   name: 'premium Indian businesses',
   /** How the prospect refers to their own place, used inside WhatsApp messages. */
   noun: 'business',
-  eyebrow: null,
+  marketing:
+    "Every enquiry is saved as a lead. People who booked get a reminder before the visit, and people who agreed to hear from you get your next offer, on the same number.",
   subhead:
     'Your customer messages at 11pm on a Sunday. haazir answers in the language they wrote in, books them the slot they asked for, and hands the thread to your team the moment it needs a person.',
   /** The sample exchange in the hero card. */
@@ -59,7 +60,8 @@ export const SEGMENTS = [
     slug: 'jewellers',
     name: 'jewellery showrooms',
     noun: 'jewellery showroom',
-    eyebrow: 'For jewellery showrooms',
+    marketing:
+      "Every enquiry is saved as a lead. The customer who asked about a set gets a reminder before the viewing, and those who agreed to hear from you get the festive collection on the same number.",
     subhead:
       'A customer asks about a set at 11pm on a Sunday. haazir answers in the language they wrote in, holds the piece, books the viewing — and hands the thread to your counter staff the moment it turns into a negotiation.',
     chat: {
@@ -94,9 +96,10 @@ export const SEGMENTS = [
     slug: 'clinics',
     name: 'clinics and dental practices',
     noun: 'clinic',
-    eyebrow: 'For clinics and dental practices',
+    marketing:
+      "Every enquiry is saved as a lead. Patients get a reminder before the appointment, and those who agreed to hear from you get the next health camp or check-up offer on the same number.",
     subhead:
-      'A patient messages after the front desk has gone home. haazir answers in the language they wrote in, offers the slots that are actually free, sends the reminder the day before — and never gives medical advice.',
+      'A patient messages after the front desk has gone home. haazir answers in the language they wrote in, offers the slots that are actually free, sends a reminder before the visit — and never gives medical advice.',
     chat: {
       time: '10:18 pm',
       from: 'Doctor sahab ka Saturday ka slot mil jayega?',
@@ -111,7 +114,7 @@ export const SEGMENTS = [
         { who: 'them', text: 'Haan kar dijiye. Consultation ki fees kitni hai?' },
         {
           who: 'agent',
-          text: 'Consultation ₹600 hai. Appointment confirm — Saturday 11:30 am. Ek din pehle reminder bhej doonga.',
+          text: 'Consultation ₹600 hai. Appointment confirm — Saturday 11:30 am. Aane se pehle reminder bhej doonga.',
         },
         { who: 'them', text: 'Mujhe do din se dard ho raha hai, koi dawai bata dijiye?' },
         {
@@ -126,7 +129,8 @@ export const SEGMENTS = [
     slug: 'hotels',
     name: 'hotels and resorts',
     noun: 'hotel',
-    eyebrow: 'For hotels and resorts',
+    marketing:
+      "Every enquiry is saved as a lead. Guests get a reminder before they arrive, and those who agreed to hear from you get the season's offer on the same number.",
     subhead:
       'An enquiry lands at midnight while your front desk is on a night shift. haazir answers in the language they wrote in, checks what is free, holds the room, and passes the thread over the moment someone wants to negotiate a rate.',
     chat: {
@@ -161,7 +165,8 @@ export const SEGMENTS = [
     slug: 'coaching',
     name: 'coaching institutes',
     noun: 'coaching institute',
-    eyebrow: 'For coaching institutes',
+    marketing:
+      "Every enquiry is saved as a lead. Parents get a reminder before the demo class and before each fee instalment, with a payment link, and those who agreed to hear from you get the new batch announcement on the same number.",
     subhead:
       'A parent messages at 11pm asking about fees and batch timings. haazir answers in the language they wrote in, sends the fee structure, books the counselling slot — and hands over the moment they ask for a discount.',
     chat: {

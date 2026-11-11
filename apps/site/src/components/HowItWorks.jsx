@@ -1,5 +1,3 @@
-import { SectionLabel } from './Brand'
-import Reveal from './Reveal'
 
 /**
  * Three steps on one line of time. The paragraphs are the point, so the only
@@ -30,8 +28,7 @@ export default function HowItWorks() {
   return (
     <section id="how-it-works" className="border-t border-line bg-paper py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
-        <Reveal className="max-w-[46rem]">
-          <SectionLabel>How it works</SectionLabel>
+        <div className="max-w-[46rem]">
           <h2 className="max-w-[20ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             Three weeks, and nobody learns new software.
           </h2>
@@ -39,7 +36,7 @@ export default function HowItWorks() {
             You keep the same number, the same team, the same way of speaking to customers.
             We do the part that takes an engineer.
           </p>
-        </Reveal>
+        </div>
 
         <ol className="relative mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
           {/* The line the numbers sit on, desktop only. */}
@@ -49,7 +46,7 @@ export default function HowItWorks() {
           />
 
           {STEPS.map((step, i) => (
-            <Reveal as="li" key={step.n} delay={i * 80} className="relative">
+            <li key={step.n} className="relative">
               <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-clay-deep text-[1rem] font-semibold text-white ring-8 ring-paper">
                 {step.n}
               </span>
@@ -58,7 +55,7 @@ export default function HowItWorks() {
               </p>
               <h3 className="mt-4 text-[1.4rem]">{step.title}</h3>
               <p className="mt-3 text-[0.98rem] text-ink/70">{step.body}</p>
-            </Reveal>
+            </li>
           ))}
         </ol>
       </div>

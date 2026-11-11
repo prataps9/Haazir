@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Link2, MoonStar } from 'lucide-react'
-import { JharokhaArch, PrimaryCTA, SectionLabel } from './Brand'
-import Reveal from './Reveal'
+import { JharokhaArch, PrimaryCTA } from './Brand'
 import { groupIndian, indianShort, rupees } from '../lib/format'
 import { useAnimatedNumber } from '../lib/hooks'
 import { SEGMENT } from '../lib/campaign'
@@ -66,12 +65,11 @@ export default function Calculator() {
   return (
     <section id="calculator" className="border-t border-line bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
-        <Reveal>
-          <SectionLabel>The cost of silence</SectionLabel>
+        <div>
           <h2 className="max-w-[18ch] text-[clamp(2rem,4.6vw,3.2rem)]">
             Move two sliders. See the year you're giving away.
           </h2>
-        </Reveal>
+        </div>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-16">
           {/* Inputs */}
@@ -242,17 +240,28 @@ function Slider({ id, label, value, min, max, step, onChange, display, suffix, c
         </p>
       </div>
 
-      <input
-        id={id}
-        type="range"
-        className="haazir-range mt-2"
-        style={{ '--fill': `${((value - min) / (max - min)) * 100}%` }}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
+      {/* The track and its filled part are two flat bars under the input. */}
+      <div className="relative mt-2">
+        <span
+          className="pointer-events-none absolute inset-x-0 top-[15px] h-1 rounded-full bg-line"
+          aria-hidden="true"
+        />
+        <span
+          className="pointer-events-none absolute top-[15px] left-0 h-1 rounded-full bg-clay"
+          style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+          aria-hidden="true"
+        />
+        <input
+          id={id}
+          type="range"
+          className="haazir-range relative block"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      </div>
 
       <div className="flex justify-between text-[0.78rem] text-ink/60">
         <span>{id === 'ticket' ? rupees(min) : groupIndian(min)}</span>

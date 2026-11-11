@@ -1,8 +1,8 @@
 import { CalendarCheck, Check, CheckCheck, Languages, ShieldCheck, UserRound } from 'lucide-react'
-import { SectionLabel } from './Brand'
-import Reveal from './Reveal'
 
 /**
+ * The first half of the product: the agent that replies.
+ *
  * Three equal cards, each with a small picture of the thing it describes, so a
  * reader sees the product before they finish the sentence. The compliance
  * point is the strip underneath: a reassurance, not a fourth feature.
@@ -11,7 +11,7 @@ const CARDS = [
   {
     icon: CalendarCheck,
     title: 'Books and confirms on its own',
-    body: 'Your customer picks a slot inside the chat — no callback, no "we\'ll confirm tomorrow". It reads your live calendar, offers only what is free, and sends the reminder the day before.',
+    body: 'Your customer picks a slot inside the chat — no callback, no "we\'ll confirm tomorrow". It offers only the slots that are free, confirms the booking, and sends a reminder before the visit.',
     visual: SlotsVisual,
   },
   {
@@ -30,25 +30,24 @@ const CARDS = [
 
 const SAFEGUARDS = [
   'Business verification',
-  'Green tick application',
   'Template approvals',
-  'Quality rating monitoring',
+  'Opt-outs respected on every send',
+  'No promotions sent at night',
 ]
 
 export default function WhatItDoes() {
   return (
     <section id="what-it-does" className="bg-paper py-20 sm:py-28">
       <div className="mx-auto max-w-[1180px] px-5 sm:px-8">
-        <Reveal>
-          <SectionLabel>What your customer gets</SectionLabel>
+        <div>
           <h2 className="max-w-[20ch] text-[clamp(2rem,4.6vw,3.2rem)]">
-            An answer in seconds, from someone who sounds like your shop.
+            First, it replies. In seconds, sounding like your shop.
           </h2>
-        </Reveal>
+        </div>
 
         <div className="mt-12 grid gap-4 sm:gap-5 md:grid-cols-3">
           {CARDS.map(({ icon: Icon, title, body, visual: Visual }, i) => (
-            <Reveal key={title} delay={i * 70}>
+            <div key={title}>
               <article className="flex h-full flex-col rounded-[1.5rem] border border-line bg-white p-3 card">
                 <div className="flex h-44 items-center justify-center rounded-[1.1rem] bg-stone px-4">
                   <Visual />
@@ -61,12 +60,12 @@ export default function WhatItDoes() {
                   <p className="mt-3 text-[0.98rem] text-ink/70">{body}</p>
                 </div>
               </article>
-            </Reveal>
+            </div>
           ))}
         </div>
 
         {/* Compliance, as a strip rather than a whole tile. */}
-        <Reveal delay={210} className="mt-4 sm:mt-5">
+        <div className="mt-4 sm:mt-5">
           <div className="rounded-[1.5rem] border border-line bg-white px-6 py-6 card sm:px-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
               <p className="flex items-start gap-4 lg:max-w-[30rem]">
@@ -74,7 +73,7 @@ export default function WhatItDoes() {
                   <ShieldCheck className="h-5 w-5" strokeWidth={1.7} />
                 </span>
                 <span className="text-[0.98rem] text-ink/75">
-                  <strong className="font-semibold text-ink">Your number will not get banned.</strong>{' '}
+                  <strong className="font-semibold text-ink">Your number stays inside WhatsApp's rules.</strong>{' '}
                   We run on the official WhatsApp Business Platform, not a library signing in as
                   your phone. The compliance work is ours.
                 </span>
@@ -90,7 +89,7 @@ export default function WhatItDoes() {
               </ul>
             </div>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   )
@@ -117,7 +116,7 @@ function SlotsVisual() {
       </div>
       <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-mint px-2.5 py-1.5 text-[0.78rem] text-ink">
         <CheckCheck className="h-3.5 w-3.5 text-tick" strokeWidth={2.2} />
-        Booked. Reminder goes out Friday.
+        Booked. Reminder set.
       </p>
     </div>
   )
