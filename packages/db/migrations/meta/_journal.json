@@ -71,6 +71,13 @@
       "when": 1794400793877,
       "tag": "0009_attribution",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794401487335,
+      "tag": "0010_sequences",
+      "breakpoints": true
     }
   ]
 }

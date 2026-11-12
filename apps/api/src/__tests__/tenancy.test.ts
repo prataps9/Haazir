@@ -172,6 +172,9 @@ describe('tenant isolation: org A can never see or change org B', () => {
       owner.post('/api/v1/campaigns').send({ name: 'x', templateId: templateB!.id }),
       owner.patch(`/api/v1/segments/${segmentB!.id}`).send({ name: 'hacked' }),
       owner.delete(`/api/v1/segments/${segmentB!.id}`),
+      owner
+        .put('/api/v1/sequences/no_demo')
+        .send({ enabled: false, steps: [{ delayHours: 24, templateId: templateB!.id }] }),
     ]
     const results = await Promise.all(attempts)
     results.forEach((res, i) => expect(res.status, `attempt ${i + 1}`).toBe(404))

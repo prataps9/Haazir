@@ -115,7 +115,28 @@ Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after t
      from a real ad; no screen lists leads per ad; `leads.campaign_id` has no foreign key (the
      schema files would import each other); the outcome tiles were tested by query, not seen in
      the browser with real replies; the ad click id is stored on the message but not used.
-6. Follow-up sequences (not started). Agreed: at most 3 steps, off by default, cost shown.
+6. **Follow-up sequences (done).** Migration `0010_sequences`; page `/follow-ups` is `/sequences`
+   in the app (nav "Follow-ups", owners and admins).
+   - Three fixed triggers, one sequence each, up to 3 template messages, off until switched on:
+     asked but no demo booked (timed from the first message), booked but did not come, came but
+     not admitted (both timed from the class). It is not a flow builder (spec §3).
+   - An hourly `sequence_sweep` on the `reminder` queue enrols leads that reach a trigger after the
+     sequence was switched on (old leads are never messaged) and sends due steps through
+     `sendAutomation` with the chosen template: free text inside the 24-hour window, the approved
+     template outside it, never between 9 PM and 8 AM, only to people who said yes to updates.
+   - A lead is in one sequence at a time and never in the same one twice. A sequence ends when the
+     person replies, books a demo (for the first two), is admitted or lost, sends STOP, staff take
+     the chat, or its template is no longer approved.
+   - A step can only use an approved template whose blanks are a name, course or batch. The page
+     shows the most one lead can cost (Meta's rate per step), switched off by default.
+   - Verified: 12 worker tests (timing, consent, every stop rule, night hold, no double send), 4 API
+     tests and a tenancy case; checks; all three e2e scripts on a fresh database; the page in the
+     browser at desktop and phone width.
+   - Known gaps: nothing has been sent through real Meta, so a step's template category (and so its
+     charge) is as the owner approved it; no per-lead view of where someone is in a sequence; the
+     cost shown is a ceiling and ignores that some steps will land in a free window; the e2e
+     campaign script only passes on a database no earlier run has used (also true before this
+     step; CI starts fresh), so reset the local database between runs.
 
 ## Next: Phase 6, business layer, hardening and launch
 

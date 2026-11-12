@@ -11,6 +11,7 @@ import { analyticsRouter } from './routes/analytics'
 import { botRouter } from './routes/bot'
 import { campaignsRouter } from './routes/campaigns'
 import { segmentsRouter } from './routes/segments'
+import { sequencesRouter } from './routes/sequences'
 import { contactsRouter } from './routes/contacts'
 import { conversationsRouter } from './routes/conversations'
 import { coursesRouter } from './routes/courses'
@@ -92,6 +93,7 @@ export function createApp(deps: AppDeps) {
   api.use(templatesRouter(deps))
   api.use(campaignsRouter(deps))
   api.use(segmentsRouter(deps))
+  api.use(sequencesRouter(deps))
 
   app.use('/api/v1', api)
 

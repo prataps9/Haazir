@@ -10,7 +10,9 @@ import {
 import { courses, demoBookings, feeInstallments, leads, organizations, students } from '@haazir/db'
 import {
   announceMessage,
+  enrollInSequences,
   notifyOrg,
+  runSequences,
   quietUntil,
   sendAutomation,
   type ReminderJob,
@@ -34,6 +36,8 @@ export async function processReminder(deps: Deps, job: ReminderJob) {
       return demoReminder(deps, job.orgId, job.bookingId)
     case 'demo_followup':
       return demoFollowup(deps, job.orgId, job.bookingId)
+    case 'sequence_sweep':
+      return sequenceSweep(deps, job.orgId)
     case 'fee_sweep':
       return feeSweep(deps, job.orgId)
   }
@@ -197,6 +201,37 @@ export async function feeSweep(deps: Deps, onlyOrgId?: string) {
     )
   }
   deps.log.info({ today, ...tally }, 'fee sweep done')
+  return tally
+}
+
+/**
+ * Once an hour: leads that have reached a sequence's trigger are enrolled,
+ * and the steps that are due go out (opted-in people only, not at night).
+ * Institutes with no sequence switched on cost one query each.
+ */
+export async function sequenceSweep(deps: Deps, onlyOrgId?: string) {
+  const now = deps.now()
+  const orgs = await deps.db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(onlyOrgId ? eq(organizations.id, onlyOrgId) : eq(organizations.status, 'active'))
+  const tally = { enrolled: 0, sent: 0, stopped: 0, done: 0, held: 0 }
+  for (const org of orgs) {
+    tally.enrolled += await enrollInSequences(deps.db, org.id)
+    const run = await runSequences(
+      { db: deps.db, outboundQueue: deps.queues.outbound },
+      org.id,
+      now,
+      { ignoreQuietHours: deps.quietHoursOff },
+    )
+    for (const id of run.messageIds)
+      await announceMessage(deps.db, deps.events, org.id, id, 'message:new')
+    tally.sent += run.sent
+    tally.stopped += run.stopped
+    tally.done += run.done
+    tally.held += run.held
+  }
+  if (tally.enrolled || tally.sent || tally.stopped) deps.log.info(tally, 'sequence sweep done')
   return tally
 }
 

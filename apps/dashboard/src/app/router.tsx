@@ -60,6 +60,10 @@ const screens: RouteObject[] = [
     lazy: async () => ({ Component: (await import('@/features/templates/TemplatesPage')).default }),
   },
   {
+    path: 'sequences',
+    lazy: async () => ({ Component: (await import('@/features/sequences/SequencesPage')).default }),
+  },
+  {
     path: 'contacts',
     lazy: async () => ({ Component: (await import('@/features/contacts/ContactsPage')).default }),
   },
@@ -93,6 +97,7 @@ const screens: RouteObject[] = [
           'courses',
           'templates',
           'contacts',
+          'sequences',
           'campaigns',
           'reports',
         ].includes(item.key),

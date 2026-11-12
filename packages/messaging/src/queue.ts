@@ -34,6 +34,8 @@ export type ReminderJob =
   | { kind: 'demo_followup'; orgId: string; bookingId: string }
   /** The daily fee run: statuses move, reminders go, links are made. No orgId = every org. */
   | { kind: 'fee_sweep'; orgId?: string }
+  /** The hourly follow-up sequences run: enrol leads, send the steps that are due. */
+  | { kind: 'sequence_sweep'; orgId?: string }
 
 /** One step of a campaign: start (snapshot the audience) or the next batch. */
 export interface CampaignJob {

@@ -138,6 +138,16 @@ async function scheduleHeartbeat() {
       opts: { removeOnComplete: 30, removeOnFail: 100 },
     },
   )
+  // Follow-up sequences: enrol and send what's due, on the hour.
+  await reminderQueue.upsertJobScheduler(
+    'sequence-sweep',
+    { pattern: '0 * * * *', tz: 'Asia/Kolkata' },
+    {
+      name: 'sequence_sweep',
+      data: { kind: 'sequence_sweep' },
+      opts: { removeOnComplete: 30, removeOnFail: 100 },
+    },
+  )
   // The owner's "Aaj ka hisaab" on WhatsApp at 8 PM India time (spec §13).
   await summaryQueue.upsertJobScheduler(
     'daily-summary',

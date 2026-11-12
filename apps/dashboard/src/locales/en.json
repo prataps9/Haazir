@@ -19,7 +19,8 @@
     "billing": "Billing",
     "settings": "Settings",
     "admin": "Admin",
-    "contacts": "Contacts"
+    "contacts": "Contacts",
+    "sequences": "Follow-ups"
   },
   "shell": {
     "notifications": "Notifications",
@@ -861,7 +862,10 @@
     "empty_audience": "Nobody in this audience has said yes to updates yet.",
     "not_running": "Only a scheduled or sending campaign can be stopped.",
     "not_approved": "Only a template Meta has approved can be sent.",
-    "opted_out": "They sent STOP; only they can start messages again."
+    "opted_out": "They sent STOP; only they can start messages again.",
+    "step_order": "Each message must come later than the one before it.",
+    "unfillable": "This message needs a date or an amount, which a follow-up cannot fill in.",
+    "no_steps": "Add at least one message before switching it on."
   },
   "campaigns": {
     "title": "Campaigns",
@@ -1103,5 +1107,37 @@
     "importOptedIn_other": "{{count}} marked as agreed to updates",
     "importInvalid_one": "{{count}} row had no readable number: row {{rows}}",
     "importInvalid_other": "{{count}} rows had no readable number: rows {{rows}}"
+  },
+  "sequences": {
+    "title": "Follow-ups",
+    "intro": "Messages that go out by themselves to people who went quiet. Each follow-up only reaches people who said yes to updates, never at night, and stops the moment they reply, book, are admitted or write STOP. Each message sent after their free 24 hours is charged by Meta.",
+    "noTemplatesTitle": "No message to use yet",
+    "noTemplatesBody": "A follow-up needs a message Meta has approved that only uses a name, a course or a batch. Approve one in Templates first.",
+    "triggers": {
+      "no_demo": {
+        "title": "Asked, but no demo booked",
+        "body": "For people who enquired and have not booked a demo class. Counted from their first message."
+      },
+      "demo_missed": {
+        "title": "Booked a demo, did not come",
+        "body": "For people marked \"did not come\". Counted from the class time."
+      },
+      "demo_no_admission": {
+        "title": "Came to the demo, not admitted yet",
+        "body": "For people marked \"came\" who have not joined. Counted from the class time."
+      }
+    },
+    "afterDays": "Message {{n}}: after (days)",
+    "message": "Message",
+    "unusable": "This message can no longer be sent",
+    "removeStep": "Remove message {{n}}",
+    "addStep": "Add a message",
+    "cost": "Most this can cost per person: {{amount}}. It is less when they replied in the last 24 hours, as those messages are free.",
+    "on": "Send these follow-ups",
+    "onHint": "On. It applies to people who reach this point from now on, not to anyone before.",
+    "offHint": "Off. Nothing is sent.",
+    "order": "Each message must come later than the one before it.",
+    "saved": "Follow-up saved",
+    "counts": "{{active}} in progress, {{done}} finished, {{stopped}} stopped early"
   }
 }

@@ -127,3 +127,28 @@ export type BusinessHours = Record<
   'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun',
   { open: string; close: string } | null
 >
+
+/**
+ * Follow-up sequences: a short run of template messages to a lead who has gone
+ * quiet. The triggers are fixed (this is not a flow builder, spec §3), there is
+ * one sequence per trigger, and a lead is in at most one at a time.
+ */
+export const SEQUENCE_TRIGGERS = ['no_demo', 'demo_missed', 'demo_no_admission'] as const
+export type SequenceTrigger = (typeof SEQUENCE_TRIGGERS)[number]
+export const ENROLLMENT_STATUSES = ['active', 'done', 'stopped'] as const
+export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number]
+/** Every extra step is another paid message for the institute: keep it short. */
+export const SEQUENCE_MAX_STEPS = 3
+/** A step can wait from an hour to 30 days after the trigger. */
+export const SEQUENCE_MAX_DELAY_HOURS = 30 * 24
+/**
+ * What a sequence can fill a template's {{n}} with for one person. A template
+ * with any other variable can't be used as a step.
+ */
+export const SEQUENCE_VARIABLES = {
+  name: 'contact_name',
+  contact_name: 'contact_name',
+  student_name: 'contact_name',
+  course: 'course',
+  batch: 'batch',
+} as const satisfies Record<string, 'contact_name' | 'course' | 'batch'>

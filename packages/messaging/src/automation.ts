@@ -60,6 +60,12 @@ export async function sendAutomation(
     orgId: string
     contactId: string
     purpose: TemplatePurpose
+    /**
+     * Send this template of the org's instead of the standard one for the
+     * purpose (a sequence step). Inside the 24-hour window its words go as a
+     * free message; outside, as the template, which must be approved.
+     */
+    templateId?: string
     values: string[]
     buttonRef?: string
     urgent?: boolean
@@ -89,7 +95,33 @@ export async function sendAutomation(
     !!conversation.serviceWindowExpiresAt && conversation.serviceWindowExpiresAt > input.now
 
   let content: OutboundContent | null
-  if (windowOpen && def) {
+  if (input.templateId) {
+    const [chosen] = await db
+      .select()
+      .from(templates)
+      .where(and(eq(templates.id, input.templateId), eq(templates.orgId, input.orgId)))
+    if (!chosen || chosen.status !== 'approved') return { sent: false, reason: 'no_template' }
+    const preview = fillTemplate(partsOf(chosen.components).body, input.values)
+    content = windowOpen
+      ? { kind: 'text', body: preview, previewUrl: true }
+      : {
+          kind: 'template',
+          name: chosen.name,
+          language: chosen.language,
+          preview,
+          components: input.values.length
+            ? [
+                {
+                  type: 'body',
+                  parameters: input.values.map((text) => ({
+                    type: 'text',
+                    text: templateParam(text),
+                  })),
+                },
+              ]
+            : [],
+        }
+  } else if (windowOpen && def) {
     const body = fillTemplate(def.body[lang], input.values)
     content = def.buttons?.length
       ? {
