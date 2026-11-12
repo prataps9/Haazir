@@ -153,7 +153,7 @@ search traffic.
 - **An FAQ that pre-empts the DM round-trips** — the ban question, the
   number-migration question, the "what if it says something wrong" question.
   plus three on campaigns: who receives them, what they cost, and how follow-ups
-  work. Nine in all, in `Faq.jsx`.
+  work. Ten in all, in `Faq.jsx`.
 
 Segment calculator defaults (`lib/segments.js`) are deliberately conservative.
 The model multiplies up quickly, and an opening figure that reads as hype costs

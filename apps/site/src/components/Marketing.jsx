@@ -14,17 +14,17 @@ const FEATURES = [
   {
     icon: UsersRound,
     title: 'Every enquiry becomes a lead',
-    body: 'Name, number and what they asked for, saved the moment they message. Your team moves each one from new to booked to won on one board.',
+    body: 'Name, number and what they asked for, saved the moment they message, with the ad it came from when it began on a Click-to-WhatsApp ad. Your team moves each one from new to booked to won on one board, and keeps a contacts list with tags, saved groups and an import for the numbers you already have.',
   },
   {
     icon: Bell,
     title: 'Reminders and follow-ups go out on their own',
-    body: 'A confirmation when someone books, a reminder before the visit, and a follow-up the next day if they came but did not decide.',
+    body: 'A confirmation when someone books and a reminder before the visit. For people who went quiet, you can set up to three follow-up messages over a few days: after a question with no booking, a missed demo, or a demo with no admission. They stop the moment the person replies.',
   },
   {
     icon: Megaphone,
     title: 'Campaigns to the people who said yes',
-    body: 'Pick who gets it by tag or by stage, see the count and the cost before you send, and schedule it. Only people who agreed to hear from you are included.',
+    body: 'Pick who gets it by tag, stage or a saved group, see the count and the cost before you send, and schedule it. Only people who agreed to hear from you are included, and afterwards you see how many replied, booked a demo and were admitted.',
   },
   {
     icon: Wallet,
@@ -39,7 +39,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'It stops when asked',
-    body: 'Anyone who replies STOP is never messaged again, and nothing promotional goes out between 9 at night and 8 in the morning.',
+    body: 'Anyone who replies STOP is never messaged again, and can start again only by writing START themselves. Nothing promotional goes out between 9 at night and 8 in the morning.',
   },
 ]
 

@@ -36,7 +36,11 @@ const QUESTIONS = [
   },
   {
     q: 'Does it only answer, or can it also follow up?',
-    a: 'Both. It answers enquiries, and it also sends booking confirmations, reminders before a visit, a follow-up the day after, payment reminders with a link, and the campaigns you schedule. Every enquiry is saved as a lead your team can see.',
+    a: 'Both. It answers enquiries, and it also sends booking confirmations, reminders before a visit, a follow-up the day after a demo, payment reminders with a link, the campaigns you schedule, and up to three follow-up messages you set for people who went quiet. Every enquiry is saved as a lead your team can see.',
+  },
+  {
+    q: 'How do my customers agree to get offers?',
+    a: 'They can write START, or tap yes when the agent asks once whether they want news of new batches and offers. You can also record a yes you got in person, or bring in a list you already have, as long as you hold their consent. Until someone has agreed, they only get replies to their own questions.',
   },
   {
     q: 'Does it work in Hindi?',

@@ -138,6 +138,13 @@ Six steps, one at a time, plan agreed with Pratap. Phase 6 is still next after t
      campaign script only passes on a database no earlier run has used (also true before this
      step; CI starts fresh), so reset the local database between runs.
 
+7. **Landing page catches up (done).** `Marketing.jsx` and the FAQ now describe follow-up
+   sequences, contacts and saved groups, ad source on a lead, what a campaign led to, and opting in
+   with START; one new FAQ entry on how customers agree to offers. The link-preview cards print
+   only fixed text, so they were not regenerated. Known gaps: the ad-source line rests on Meta's
+   documented `referral` and has not been seen from a real ad; the WhatsApp number and domain in
+   `apps/site/src/lib/site.js` are still placeholders.
+
 ## Next: Phase 6, business layer, hardening and launch
 
 Needs from Pratap: confirm Meta's India rates for the card (seeded ₹0.8631 marketing, ₹0.1150 utility and authentication, from 1 Jul 2026); a real WABA with `whatsapp_business_management` to see real template reviews; Razorpay test keys; an LLM key for the evals and brochure extract; ~20 Hindi voice notes; staging hosting; a Meta test number for the Phase 1 loop and Android push; a read of the eval cases.
